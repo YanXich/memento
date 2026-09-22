@@ -127,6 +127,50 @@ describe("web workbench", () => {
     expect(await rawGet(s.url + "/api/overview", "evil.example.com")).toBe(403);
     expect(await rawGet(s.url + "/api/overview", "localhost")).toBe(200);
   });
+
+  it("incremental reads: unchanged stores revalidate as 304 and are never re-read", async () => {
+    const s = await boot();
+    const first = await fetch(`${s.url}/api/sessions`);
+    expect(first.status).toBe(200);
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+    expect(first.headers.get("cache-control")).toBe("no-cache");
+
+    const again = await fetch(`${s.url}/api/sessions`, { headers: { "if-none-match": etag as string } });
+    expect(again.status).toBe(304);
+
+    // A new session file lands → the stamp changes → the body is rebuilt.
+    fs.writeFileSync(
+      path.join(root as string, ".memento", "sessions", "s_test02.jsonl"),
+      [
+        JSON.stringify({ seq: 1, ts: 1_700_000_000_100, kind: "header", sessionId: "s_test02", cwd: root, model: "m", provider: "p", task: "t", mementoVersion: "0.1.0" }),
+        JSON.stringify({ seq: 2, ts: 1_700_000_000_101, kind: "result", status: "done", turns: 2 }),
+      ].join("\n") + "\n",
+    );
+    const after = await fetch(`${s.url}/api/sessions`, { headers: { "if-none-match": etag as string } });
+    expect(after.status).toBe(200);
+    const body = (await after.json()) as { sessions: { id: string; turns: number | null }[] };
+    expect(body.sessions).toHaveLength(2);
+    // The new file's turns ride along without a second read per session.
+    expect(body.sessions.find((x) => x.id === "s_test02")?.turns).toBe(2);
+  });
+
+  it("incremental reads: a rewritten lesson invalidates the lessons cache", async () => {
+    const s = await boot();
+    const first = await fetch(`${s.url}/api/lessons`);
+    const etag = first.headers.get("etag") as string;
+
+    // Rewrite the log with a second lesson and force a distinct mtime so the
+    // stamp cannot alias the previous state on coarse-clock filesystems.
+    const file = path.join(root as string, ".memento", "memory", "lessons.jsonl");
+    fs.appendFileSync(file, JSON.stringify({ op: "upsert", ts: Date.now() + 1, lesson: { id: "l_test02", text: "Second lesson", kind: "pattern", confidence: 0.35, evidence: ["t"], reinforced: 0, contradicted: 0, scope: "repo", created: Date.now() + 1, lastSeen: Date.now() + 1, tags: [], status: "active" } }) + "\n");
+    fs.utimesSync(file, new Date(Date.now() + 2000), new Date(Date.now() + 2000));
+
+    const after = await fetch(`${s.url}/api/lessons`, { headers: { "if-none-match": etag } });
+    expect(after.status).toBe(200);
+    const body = (await after.json()) as { active: { id: string }[] };
+    expect(body.active.map((l) => l.id).sort()).toEqual(["l_test01", "l_test02"]);
+  });
 });
 
 function rawGet(url: string, host: string): Promise<number> {

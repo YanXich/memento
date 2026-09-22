@@ -18,11 +18,12 @@ import http from "node:http";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "../config.ts";
+import { loadConfig, userConfigPath, projectConfigPath } from "../config.ts";
 import { listSessions, loadSession } from "../kernel/session.ts";
 import { LessonStore } from "../memory/store.ts";
 import type { Lesson } from "../memory/types.ts";
 import { loadSpecBundle } from "../spec/store.ts";
+import { walkFiles } from "../util/paths.ts";
 import { VERSION } from "../version.ts";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
@@ -84,11 +85,11 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, root:
     res.end(ui);
     return;
   }
-  if (p === "/api/overview") return json(res, 200, overview(root));
-  if (p === "/api/sessions") return json(res, 200, sessionList(root));
-  if (p.startsWith("/api/sessions/")) return sessionDetail(res, root, decodeURIComponent(p.slice("/api/sessions/".length)));
-  if (p === "/api/lessons") return json(res, 200, lessons(root));
-  if (p === "/api/spec") return json(res, 200, spec(root));
+  if (p === "/api/overview") return respondJson(req, res, p, [stampDir(sessionsDir(root)), stampDir(memoryDir(root)), stampTree(specDir(root)), stampFile(projectConfigPath(root)), stampFile(userConfigPath())], () => overview(root));
+  if (p === "/api/sessions") return respondJson(req, res, p, [stampDir(sessionsDir(root))], () => sessionList(root));
+  if (p.startsWith("/api/sessions/")) return sessionDetail(req, res, root, decodeURIComponent(p.slice("/api/sessions/".length)));
+  if (p === "/api/lessons") return respondJson(req, res, p, [stampDir(memoryDir(root))], () => lessons(root));
+  if (p === "/api/spec") return respondJson(req, res, p, [stampTree(specDir(root))], () => spec(root));
   return json(res, 404, { error: `no route: ${p}` });
 }
 
@@ -101,8 +102,114 @@ function json(res: http.ServerResponse, code: number, data: unknown): void {
   res.end(JSON.stringify(data));
 }
 
+// ---------------------------------------------------------------------------
+// Incremental reads. Every API response is keyed by the file stamps it was
+// built from (name:mtime:size of the stores underneath). A repeated request
+// revalidates with stat() only and answers 304 Not Modified when nothing
+// changed — stores are re-read exclusively on real change. (M12)
+// ---------------------------------------------------------------------------
+
+interface CacheEntry {
+  stamp: string;
+  body: string;
+}
+
+const cache = new Map<string, CacheEntry>();
+
+function respondJson(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  key: string,
+  stamps: string[],
+  build: () => unknown,
+): void {
+  const stamp = stamps.join("\u0000");
+  const etag = `W/"${Buffer.from(stamp, "utf8").toString("base64")}"`;
+  const entry = cache.get(key);
+  if (entry && entry.stamp === stamp) {
+    if (req.headers["if-none-match"] === etag) {
+      res.writeHead(304, { etag, "cache-control": "no-cache" });
+      res.end();
+      return;
+    }
+    res.writeHead(200, jsonHeaders(etag));
+    res.end(entry.body);
+    return;
+  }
+  const body = JSON.stringify(build());
+  cache.set(key, { stamp, body });
+  res.writeHead(200, jsonHeaders(etag));
+  res.end(body);
+}
+
+function jsonHeaders(etag: string): Record<string, string> {
+  return {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-cache",
+    etag,
+    "x-content-type-options": "nosniff",
+  };
+}
+
+/** `name:mtime:size` per file in a flat dir — cheap, deterministic, changes
+ *  exactly when a file is added, removed or rewritten. The dir itself is part
+ *  of the stamp so two workspaces can never alias the same cache entry. */
+function stampDir(dir: string): string {
+  try {
+    return (
+      dir +
+      "|" +
+      fs
+        .readdirSync(dir)
+        .sort()
+        .map((n) => {
+          const st = fs.statSync(path.join(dir, n));
+          return `${n}:${Math.trunc(st.mtimeMs)}:${st.size}`;
+        })
+        .join("|")
+    );
+  } catch {
+    return `${dir}|missing`;
+  }
+}
+
+/** Recursive stamp for the spec tree (features/ and decisions/ subdirs). */
+function stampTree(dir: string): string {
+  try {
+    return (
+      dir +
+      "|" +
+      walkFiles(dir, { maxDepth: 4 })
+        .map((f) => {
+          const st = fs.statSync(f);
+          return `${f}:${Math.trunc(st.mtimeMs)}:${st.size}`;
+        })
+        .join("|")
+    );
+  } catch {
+    return `${dir}|missing`;
+  }
+}
+
+function stampFile(file: string): string {
+  try {
+    const st = fs.statSync(file);
+    return `${file}:${Math.trunc(st.mtimeMs)}:${st.size}`;
+  } catch {
+    return `${file}|missing`;
+  }
+}
+
 function sessionsDir(root: string): string {
   return path.join(root, ".memento", "sessions");
+}
+
+function memoryDir(root: string): string {
+  return path.join(root, ".memento", "memory");
+}
+
+function specDir(root: string): string {
+  return path.join(root, ".memento", "spec");
 }
 
 function overview(root: string): Record<string, unknown> {
@@ -144,26 +251,12 @@ function sessionList(root: string): Record<string, unknown> {
       model: s.header.model,
       startedAt: s.header.startedAt,
       messages: s.messageCount,
-      turns: turnsOf(s.file),
+      turns: s.turns,
     })),
   };
 }
 
-/** The result entry carries the turn count; the list API surfaces it too. */
-function turnsOf(file: string): number | null {
-  try {
-    const loaded = loadSession(file);
-    for (let i = loaded.entries.length - 1; i >= 0; i -= 1) {
-      const e = loaded.entries[i];
-      if (e && e.kind === "result") return e.turns;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function sessionDetail(res: http.ServerResponse, root: string, id: string): void {
+function sessionDetail(req: http.IncomingMessage, res: http.ServerResponse, root: string, id: string): void {
   const dir = sessionsDir(root);
   let file: string | null = null;
   try {
@@ -176,8 +269,12 @@ function sessionDetail(res: http.ServerResponse, root: string, id: string): void
     /* no sessions dir */
   }
   if (!file) return json(res, 404, { error: `session not found: ${id}` });
-  const loaded = loadSession(file);
-  json(res, 200, { header: loaded.header, status: loaded.status, messages: loaded.messages.length, entries: loaded.entries });
+  // A session being written changes its stamp on every append, so a stale
+  // cache can never mask live progress.
+  respondJson(req, res, `/api/sessions/${id}`, [stampFile(file)], () => {
+    const loaded = loadSession(file as string);
+    return { header: loaded.header, status: loaded.status, messages: loaded.messages.length, entries: loaded.entries };
+  });
 }
 
 function lessons(root: string): Record<string, unknown> {

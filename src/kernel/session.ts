@@ -168,23 +168,64 @@ export function loadSession(file: string): LoadedSession {
   };
 }
 
-export function listSessions(sessionsDir: string): { file: string; header: SessionHeader; status: string; messageCount: number }[] {
+export interface SessionSummary {
+  file: string;
+  header: SessionHeader;
+  status: string;
+  messageCount: number;
+  /** Turns of the last result entry, if one exists. */
+  turns: number | null;
+}
+
+export function listSessions(sessionsDir: string): SessionSummary[] {
   let names: string[] = [];
   try {
     names = fs.readdirSync(sessionsDir).filter((n) => n.endsWith(".jsonl"));
   } catch {
     return [];
   }
-  const out: { file: string; header: SessionHeader; status: string; messageCount: number }[] = [];
+  const out: SessionSummary[] = [];
   for (const name of names) {
-    const file = path.join(sessionsDir, name);
     try {
-      const loaded = loadSession(file);
-      out.push({ file, header: loaded.header, status: loaded.status, messageCount: loaded.messages.length });
+      out.push(scanSession(path.join(sessionsDir, name)));
     } catch {
       // Skip unreadable logs
     }
   }
   out.sort((a, b) => b.header.startedAt - a.header.startedAt);
   return out;
+}
+
+/**
+ * Light single-pass scan for list views: header + message count + the last
+ * result's status/turns. Unlike `loadSession` it never reconstructs the full
+ * message stream, so listing N sessions costs exactly one read per file.
+ * (The workbench used to read every file twice — once for the list, once for
+ * the turn count — O(2×N) before this.)
+ */
+function scanSession(file: string): SessionSummary {
+  let header: SessionHeader | null = null;
+  let messageCount = 0;
+  let status = "incomplete";
+  let turns: number | null = null;
+  for (const e of readJsonl<SessionEntry>(file)) {
+    if (!header && e.kind === "header") {
+      header = {
+        sessionId: e.sessionId,
+        cwd: e.cwd,
+        model: e.model,
+        provider: e.provider,
+        task: e.task,
+        mementoVersion: e.mementoVersion,
+        startedAt: e.ts,
+      };
+    } else if (e.kind === "message") {
+      messageCount += 1;
+    } else if (e.kind === "result") {
+      status = e.status;
+      turns = e.turns;
+    }
+  }
+  if (!header) throw new Error(`Not a session log (no header): ${file}`);
+  return { file, header, status, messageCount, turns };
 }
