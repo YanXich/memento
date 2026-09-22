@@ -10,7 +10,7 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-108%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-111%20passing-success.svg" />
 </p>
 
 ```console
@@ -36,7 +36,7 @@ suggested commit feat: rate-limit the login endpoint
   (memento never commits for you — paste this into git commit -m)
 
 ◈ session s_h8x2kd91mf · done · 3 turn(s) · 8.2k in / 1.1k out
-resume context: memento show s_h8x2kd91mf
+resume: memento resume s_h8x2kd91mf · replay: memento show s_h8x2kd91mf
 ```
 
 ---
@@ -125,6 +125,7 @@ Memento 说生态的语言，而且双向都会：
 - **git 内建**——Agent 通过只读的 `git_status` / `git_diff` / `git_log` 工具了解仓库状态，而不是瞎猜。循环结束后，memento 读取工作区 diff（含已跟踪**和**未跟踪文件），给出 conventional commit 格式的提交建议。它**从不**执行 `git commit`——历史始终归你。
 - **Undo**——每次 `write` / `edit` / `apply_patch` 都会把改前状态快照到 `.memento/undo/`。`memento undo` 逐批回滚上一次写入。给文件系统装上安全气囊。
 - **先计划后动手**——`memento plan` 在动任何文件之前先起草 Plan/Act 计划。批准后 Agent 逐步执行；拒绝则一切如初。
+- **断点续跑**——`memento resume s_…` 继续被中断的任务：完整转录重新喂给模型，循环在**同一个**会话日志里继续，审计轨迹始终是一条完整故事（verify → reflect → commit hint 全部重跑）。
 
 ---
 
@@ -148,7 +149,7 @@ memento run "解释 auth 如何工作，然后加一个 /healthz 路由"
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 108 个测试
+npm run check      # typecheck + 111 个测试
 npm run build      # dist/cli.js，约 160 KB
 node dist/cli.js run "…"
 ```
@@ -212,7 +213,7 @@ memento show s_h8x2kd91mf     # 查看转录（任意唯一前缀即可）
 | `memento spec decision <title>` | 记录一条 ADR 提纲 |
 | `memento lessons` | 列出经验（`--all`、`--json`），`--reinforce <id>`、`--contradict <id>`、`--retire <id>` |
 | `memento remember <text>` | 手动记录经验——进入同一套置信度机制 |
-| `memento sessions` / `show <id>` | 会话历史与转录 |
+| `memento sessions` / `show <id>` / `resume <id>` | 会话历史、转录与断点续跑（任意唯一前缀均可） |
 | `memento serve-mcp` | 通过 stdio 把记忆暴露为 MCP 服务器（搜索/添加经验、统计）——给 Claude Desktop、Cursor、goose…… |
 | `memento web` | 在浏览器里打开只读工作台——规格、记忆、会话（`--port` 指定端口，`--no-open` 不自动开浏览器） |
 

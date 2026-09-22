@@ -55,6 +55,8 @@ export interface LoopResult {
   status: "done" | "aborted" | "error" | "max_turns";
   turns: number;
   usage: Usage;
+  /** The conversation exactly as the model last saw it (post-compaction). */
+  messages: Message[];
   error?: string;
 }
 
@@ -86,7 +88,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
     if (opts.signal?.aborted) {
       await finish("aborted");
       session.appendResult("aborted", turns);
-      return { status: "aborted", turns, usage: total };
+      return { status: "aborted", turns, usage: total, messages: context };
     }
     turns += 1;
     await bus.emit({ type: "turn_start", turn: turns });
@@ -117,7 +119,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       // Hard error already emitted; stop the session cleanly.
       await finish("error");
       session.appendResult("error", turns);
-      return { status: "error", turns, usage: total };
+      return { status: "error", turns, usage: total, messages: context };
     }
     context.push(assistant);
     session.appendMessage(assistant);
@@ -130,12 +132,12 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
     if (assistant.stopReason === "aborted") {
       await finish("aborted");
       session.appendResult("aborted", turns);
-      return { status: "aborted", turns, usage: total };
+      return { status: "aborted", turns, usage: total, messages: context };
     }
     if (assistant.stopReason === "error") {
       await finish("error");
       session.appendResult("error", turns);
-      return { status: "error", turns, usage: total };
+      return { status: "error", turns, usage: total, messages: context };
     }
 
     const calls = toolCallsOf(assistant);
@@ -146,7 +148,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       if (lengthStreak >= 3) {
         await finish("max_turns");
         session.appendResult("max_turns", turns);
-        return { status: "max_turns", turns, usage: total };
+        return { status: "max_turns", turns, usage: total, messages: context };
       }
       const nudge: Message = {
         id: messageId(),
@@ -170,7 +172,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
     if (calls.length === 0) {
       await finish("done");
       session.appendResult("done", turns);
-      return { status: "done", turns, usage: total };
+      return { status: "done", turns, usage: total, messages: context };
     }
 
     // --- Tool batch ---
@@ -198,7 +200,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
 
   await finish("max_turns");
   session.appendResult("max_turns", turns);
-  return { status: "max_turns", turns, usage: total };
+  return { status: "max_turns", turns, usage: total, messages: context };
 
   // ---------------------------------------------------------------- helpers
 

@@ -10,7 +10,7 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-108%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-111%20passing-success.svg" />
 </p>
 
 ```console
@@ -36,7 +36,7 @@ suggested commit feat: rate-limit the login endpoint
   (memento never commits for you — paste this into git commit -m)
 
 ◈ session s_h8x2kd91mf · done · 3 turn(s) · 8.2k in / 1.1k out
-resume context: memento show s_h8x2kd91mf
+resume: memento resume s_h8x2kd91mf · replay: memento show s_h8x2kd91mf
 ```
 
 ---
@@ -125,6 +125,7 @@ Memento speaks the ecosystem's language, in both directions:
 - **git, built in** — the agent navigates repo state through read-only `git_status` / `git_diff` / `git_log` tools instead of guessing. After the loop, memento reads the working diff (tracked **and** untracked files) and suggests a conventional commit message. It never runs `git commit` — history stays yours.
 - **Undo** — every `write` / `edit` / `apply_patch` snapshots the previous state to `.memento/undo/`. `memento undo` rolls back the last write batch, step by step. Crash containment for the file system.
 - **Plan first** — `memento plan` drafts a Plan/Act split before touching anything. Approve the plan, and the agent executes it step by step; decline, and nothing changes.
+- **Resume** — `memento resume s_…` continues an interrupted run: the exact transcript is replayed into the model and the loop goes on in the SAME session log, so the audit trail stays one story (verify → reflect → commit hint run again).
 
 ---
 
@@ -148,7 +149,7 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 108 tests
+npm run check      # typecheck + 111 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```
@@ -212,7 +213,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento spec decision <title>` | record an ADR stub |
 | `memento lessons` | list lessons (`--all`, `--json`), `--reinforce <id>`, `--contradict <id>`, `--retire <id>` |
 | `memento remember <text>` | record a lesson by hand — it joins the same confidence machinery |
-| `memento sessions` / `show <id>` | session history and transcripts |
+| `memento sessions` / `show <id>` / `resume <id>` | session history, transcripts, and interruption recovery (any unique prefix works) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
 | `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
 

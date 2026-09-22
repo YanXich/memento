@@ -89,3 +89,9 @@ export { SessionRenderer } from "./cli/ui.ts";
 // --- command entry points (programmatic use)
 export { runTask } from "./cli/commands/run.ts";
 export type { RunOptions } from "./cli/commands/run.ts";
+export { resumeTask } from "./cli/commands/resume.ts";
+export type { ResumeOptions } from "./cli/commands/resume.ts";
+export { buildLoopHooks } from "./cli/hooks.ts";
+export type { HooksLlm } from "./cli/hooks.ts";
+export { runAftermath, printSummary } from "./cli/aftermath.ts";
+export type { AftermathOptions } from "./cli/aftermath.ts";

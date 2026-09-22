@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **108/108 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint）· 构建成功。
+**验证状态**：typecheck 干净 · **111/111 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -87,6 +87,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ `apply_patch` unified diff 工具（含模糊匹配、dry-run、失败重试语义）
 - ✅ 反思增强：spec 建议生成 + 记忆回收入 `--reflect` 时机的双写（spec-suggestions.md 落盘）
 - ✅ 交互式 plan 模式：`memento plan <task>` 先出计划，用户确认后执行（-y 直批）
+- ✅ 断点续跑：`memento resume <session>` 把完整转录重放给模型，继续写入**同一个**会话日志，verify → reflect → commit hint 重跑（复用了 run/resume 共享的 hooks + aftermath 模块）
 - ⬜ M12 web server 增量读（顺延）
 - 验收：e2e 测试覆盖 repo map 注入与 plan 批准链路 ✅
 
@@ -117,7 +118,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 
 ## 5. 验收路线图（里程碑）
 
-- **M1（已完成）**：Phase 1-3 全绿（108/108 测试）→ 待发 `v0.2.0`（"安全/生态/品牌大修"变更日志）
+- **M1（已完成）**：Phase 1-3 全绿（111/111 测试）→ 待发 `v0.2.0`（"安全/生态/品牌大修"变更日志）
 - **M2（进行中）**：落地页 + 记忆基准初版数据 → 第一篇 benchmark 博客
 - **M3（一个月）**：MCP 双通道文章 + 落地页 → HN 首发
 - **M4（持续）**：插件生态 + 社区运营 → 冲 10k → 冲 100k

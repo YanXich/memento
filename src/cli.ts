@@ -7,6 +7,7 @@ import pc from "picocolors";
 import { VERSION } from "./version.ts";
 import { runTask } from "./cli/commands/run.ts";
 import { planTask } from "./cli/commands/plan.ts";
+import { resumeTask } from "./cli/commands/resume.ts";
 import { specDecisionCmd, specInit, specShowCmd, specStatusCmd, specVerifyCmd } from "./cli/commands/spec.ts";
 import { lessonsCmd, rememberCmd } from "./cli/commands/memory.ts";
 import { sessionShowCmd, sessionsCmd } from "./cli/commands/sessions.ts";
@@ -180,6 +181,38 @@ program
       ...(opts.retire ? { retire: opts.retire } : {}),
       ...(opts.evidence ? { evidence: opts.evidence } : {}),
       compact: Boolean(opts.compact),
+    });
+  });
+
+program
+  .command("resume")
+  .description("continue an interrupted (or finished) session from its log")
+  .argument("<session>", "session id or unique prefix")
+  .option(...cwdOption)
+  .option("-p, --provider <id>", "provider id (default: the session's original provider)")
+  .option("-m, --model <id>", "model id (default: the session's original model)")
+  .option("--max-turns <n>", "hard cap on agent turns", (v) => parseInt(v, 10))
+  .option("--temperature <n>", "sampling temperature", (v) => parseFloat(v))
+  .option("-y, --yes", "approve all tool calls without asking")
+  .option("--no-reflect", "skip the post-session reflection pass")
+  .option("--no-verify", "skip spec verification after the session")
+  .option("--no-commit-hint", "skip the suggested commit message")
+  .option("--show-thinking", "print the model's thinking stream")
+  .option("--verbose-tools", "print full tool outputs instead of previews")
+  .action(async (session: string, opts) => {
+    process.exitCode = await resumeTask({
+      session,
+      root: rootOf(opts),
+      ...(opts.provider ? { provider: opts.provider } : {}),
+      ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.maxTurns ? { maxTurns: opts.maxTurns } : {}),
+      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+      yes: Boolean(opts.yes),
+      reflect: opts.reflect,
+      verify: opts.verify,
+      commitHint: opts.commitHint,
+      showThinking: Boolean(opts.showThinking),
+      verboseTools: Boolean(opts.verboseTools),
     });
   });
 
