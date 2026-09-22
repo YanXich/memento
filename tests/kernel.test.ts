@@ -11,6 +11,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { runLoop } from "../src/kernel/loop.ts";
+import { complete } from "../src/llm/complete.ts";
 import { SessionLog, loadSession } from "../src/kernel/session.ts";
 import { EventBus } from "../src/kernel/events.ts";
 import { ToolRegistry } from "../src/tools/types.ts";
@@ -376,5 +377,72 @@ describe("appendJsonl (concurrent append safety)", () => {
     const ids = new Set(records.map((r) => r.i));
     expect(ids.size).toBe(lines);
     for (const r of records) expect(r.line).toBe(`line-${r.i}`);
+  });
+});
+
+describe("SessionLog writer lock", () => {
+  it("refuses to open a session held by a live process", () => {
+    const s = newSession();
+    const file = s.file;
+    // Simulate a live peer: the parent (vitest main) process is alive and
+    // is not us, so the lock is treated as legitimately held.
+    fs.writeFileSync(`${file}.lock`, JSON.stringify({ pid: process.ppid, startedAt: Date.now() }));
+    expect(() => SessionLog.open(file)).toThrow(/another memento process/);
+    s.close();
+  });
+
+  it("steals a stale lock left by a dead process", () => {
+    const s = newSession();
+    s.close();
+    const file = s.file;
+    fs.writeFileSync(`${file}.lock`, JSON.stringify({ pid: 9_999_999, startedAt: Date.now() }));
+    const reopened = SessionLog.open(file);
+    reopened.appendNote("resumed after crash", "system");
+    reopened.close();
+    expect(fs.existsSync(`${file}.lock`)).toBe(false);
+    expect(loadSession(file).entries.at(-1)).toMatchObject({ kind: "note", text: "resumed after crash" });
+  });
+
+  it("close() releases the lock and the session can be re-opened", () => {
+    const s = newSession();
+    const file = s.file;
+    expect(fs.existsSync(`${file}.lock`)).toBe(true);
+    s.close();
+    expect(fs.existsSync(`${file}.lock`)).toBe(false);
+    expect(() => SessionLog.open(file)).not.toThrow();
+  });
+});
+
+describe("complete (one-shot) retry", () => {
+  it("retries a retryable failure and succeeds on the second attempt", async () => {
+    const provider = createMockProvider([
+      { error: { error: "Rate limited (429)", retryable: true } },
+      { text: "recovered", stopReason: "end" },
+    ]);
+    const result = await complete({
+      provider,
+      model: MOCK_MODEL,
+      system: "sys",
+      user: "hi",
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.text).toBe("recovered");
+    expect(provider.requests.length).toBe(2);
+  });
+
+  it("does not retry a non-retryable failure", async () => {
+    const provider = createMockProvider([
+      { error: { error: "Auth failed (401)", retryable: false } },
+      { text: "must not run", stopReason: "end" },
+    ]);
+    const result = await complete({
+      provider,
+      model: MOCK_MODEL,
+      system: "sys",
+      user: "hi",
+    });
+    expect(result.error).toContain("401");
+    expect(result.text).toBe("");
+    expect(provider.requests.length).toBe(1);
   });
 });

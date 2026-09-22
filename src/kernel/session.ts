@@ -46,6 +46,8 @@ export class SessionLog {
   private seq = 0;
   private fd: number | null = null;
   private messageCount = 0;
+  /** Set while the writer lock is held; touched only by the lock helpers below. */
+  lockFile: string | null = null;
 
   private constructor(file: string, header: SessionHeader) {
     this.file = file;
@@ -58,6 +60,7 @@ export class SessionLog {
     const file = path.join(sessionsDir, `${id}.jsonl`);
     const log = new SessionLog(file, { ...header, sessionId: id, startedAt });
     ensureDir(sessionsDir);
+    acquireLock(log);
     log.append({ kind: "header", sessionId: id, cwd: header.cwd, model: header.model, provider: header.provider, task: header.task, mementoVersion: header.mementoVersion });
     return log;
   }
@@ -75,6 +78,9 @@ export class SessionLog {
       mementoVersion: headerEntry.mementoVersion,
       startedAt: headerEntry.ts,
     });
+    // Exclusive writer lock — see acquireLock. `open` is the append path
+    // (`memento resume`), so it must not race a still-running session.
+    acquireLock(log);
     // Resume seq/messageCount from the persisted log.
     let seq = 0;
     let messages = 0;
@@ -125,6 +131,7 @@ export class SessionLog {
       fs.closeSync(this.fd);
       this.fd = null;
     }
+    releaseLock(this);
   }
 
   get currentSeq(): number {
@@ -134,6 +141,76 @@ export class SessionLog {
   get messages(): number {
     return this.messageCount;
   }
+}
+
+/**
+ * Exclusive writer lock (the `<session>.lock` file) — the concurrency guard
+ * for append paths. Without it, `memento resume` could append to a session
+ * that a live process is still writing: two seq counters would interleave
+ * and the log would stop being a faithful transcript.
+ *
+ * Acquisition is atomic (`wx` = create-if-absent). A lock left behind by a
+ * crashed process is stolen — the pid inside is checked for liveness first,
+ * so a legitimately running writer is never evicted. Reads (loadSession /
+ * listSessions) never take the lock: append-only JSONL is safe to read
+ * mid-write, partial trailing lines are skipped by design.
+ */
+function lockPathFor(file: string): string {
+  return `${file}.lock`;
+}
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireLock(log: SessionLog): void {
+  const lockFile = lockPathFor(log.file);
+  const own = { pid: process.pid, startedAt: Date.now() };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      fs.writeFileSync(lockFile, JSON.stringify(own), { flag: "wx" });
+      log.lockFile = lockFile;
+      return;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      let owner: { pid?: unknown } | null = null;
+      try {
+        owner = JSON.parse(fs.readFileSync(lockFile, "utf8")) as { pid?: unknown };
+      } catch {
+        /* corrupt lock */
+      }
+      const pid = typeof owner?.pid === "number" ? owner.pid : -1;
+      if (pid !== process.pid && pidAlive(pid)) {
+        throw new Error(
+          `session is being written by another memento process (pid ${pid}) — wait for it to finish or resume it afterwards`,
+        );
+      }
+      // Stale (dead pid, our own re-entry, or corrupt) — steal it.
+      try {
+        fs.rmSync(lockFile, { force: true });
+      } catch {
+        /* raced with another stealer — retry once */
+      }
+    }
+  }
+  throw new Error(`could not acquire session lock: ${lockFile}`);
+}
+
+function releaseLock(log: SessionLog): void {
+  if (!log.lockFile) return;
+  try {
+    const own = JSON.parse(fs.readFileSync(log.lockFile, "utf8")) as { pid?: unknown };
+    // Never unlink a lock that a peer process already owns.
+    if (own.pid === process.pid) fs.rmSync(log.lockFile, { force: true });
+  } catch {
+    /* lock already gone */
+  }
+  log.lockFile = null;
 }
 
 export interface LoadedSession {

@@ -88,13 +88,29 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, root:
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
   const p = url.pathname;
   if (p === "/" || p === "/index.html") {
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+    });
     res.end(ui);
     return;
   }
   if (p === "/api/overview") return respondJson(req, res, p, [stampDir(sessionsDir(root)), stampDir(memoryDir(root)), stampTree(specDir(root)), stampFile(projectConfigPath(root)), stampFile(userConfigPath()), stampTree(pluginsDir(root)), stampTree(globalPluginsDir(home))], () => overview(root, home));
   if (p === "/api/sessions") return respondJson(req, res, p, [stampDir(sessionsDir(root))], () => sessionList(root));
-  if (p.startsWith("/api/sessions/")) return sessionDetail(req, res, root, decodeURIComponent(p.slice("/api/sessions/".length)));
+  if (p.startsWith("/api/sessions/")) {
+    let id: string;
+    try {
+      id = decodeURIComponent(p.slice("/api/sessions/".length));
+    } catch {
+      // Malformed percent-encoding is a client bug, not a server error.
+      return json(res, 400, { error: "malformed session id (bad percent-encoding)" });
+    }
+    if (!id) return json(res, 404, { error: "no session id in path — list sessions via /api/sessions" });
+    return sessionDetail(req, res, root, id);
+  }
   if (p === "/api/lessons") return respondJson(req, res, p, [stampDir(memoryDir(root))], () => lessons(root));
   if (p === "/api/spec") return respondJson(req, res, p, [stampTree(specDir(root))], () => spec(root));
   // trust/enabled ride on config, so config files are part of the stamp too.
@@ -310,7 +326,8 @@ function sessionDetail(req: http.IncomingMessage, res: http.ServerResponse, root
   let file: string | null = null;
   try {
     // Match against directory entries only — `id` never becomes a path itself,
-    // so traversal attempts (`../../…`) simply fail to match.
+    // so traversal attempts (`../../…`) simply fail to match. (The empty id
+    // case is rejected by the caller before we get here.)
     const names = fs.readdirSync(dir).filter((n) => n.endsWith(".jsonl"));
     const match = names.find((n) => n === id || n.startsWith(id));
     if (match) file = path.join(dir, match);

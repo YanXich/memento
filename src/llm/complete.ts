@@ -34,31 +34,65 @@ export async function complete(opts: CompleteOptions): Promise<CompleteResult> {
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   let error: string | undefined;
 
-  try {
-    for await (const event of opts.provider.stream(
-      {
-        model: opts.model.id,
-        system: opts.system,
-        messages: [message],
-        tools: [],
-        maxTokens: opts.maxTokens ?? Math.min(opts.model.maxOutput, 8192),
-        ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
-      },
-      {
-        ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
-        ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
-        ...(opts.signal ? { signal: opts.signal } : {}),
-      },
-    )) {
-      if (event.type === "text_delta") text += event.text;
-      else if (event.type === "done") usage = event.usage;
-      else if (event.type === "error") error = event.error;
+  // Same retry policy as the agent loop: one retry with a short backoff for
+  // clean, retryable failures before any output arrived. Reflection and spec
+  // generation are one-shot "ask the model" calls — a blipped 429 must not
+  // silently cost the session its lesson.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    text = "";
+    usage = { inputTokens: 0, outputTokens: 0 };
+    error = undefined;
+    let retryable = false;
+    try {
+      for await (const event of opts.provider.stream(
+        {
+          model: opts.model.id,
+          system: opts.system,
+          messages: [message],
+          tools: [],
+          maxTokens: opts.maxTokens ?? Math.min(opts.model.maxOutput, 8192),
+          ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+        },
+        {
+          ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+          ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+          ...(opts.signal ? { signal: opts.signal } : {}),
+        },
+      )) {
+        if (event.type === "text_delta") text += event.text;
+        else if (event.type === "done") usage = event.usage;
+        else if (event.type === "error") {
+          error = event.error;
+          retryable = event.retryable;
+        }
+      }
+    } catch (err) {
+      error = (err as Error).message;
+      retryable = !(opts.signal?.aborted ?? false); // a mid-stream drop is worth one retry
     }
-  } catch (err) {
-    error = (err as Error).message;
+    if (attempt === 0 && error && retryable && !text && !opts.signal?.aborted) {
+      await sleep(700, opts.signal);
+      if (opts.signal?.aborted) break;
+      continue;
+    }
+    break;
   }
 
   return { text, usage, ...(error ? { error } : {}) };
+}
+
+/** Abort-aware sleep for the retry backoff. */
+async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve();
+    const timer = setTimeout(done, ms);
+    function done(): void {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    }
+    signal?.addEventListener("abort", done, { once: true });
+  });
 }
 
 /** Extract the first fenced code block (```json ... ```) or raw text — LLM output hygiene. */

@@ -93,7 +93,23 @@ describe("web workbench", () => {
     const page = await fetch(`${s.url}/`);
     expect(page.status).toBe(200);
     expect(page.headers.get("content-type")).toContain("text/html");
+    // The workbench page is a browser document — harden the embed surface.
+    expect(page.headers.get("x-frame-options")).toBe("DENY");
+    expect(page.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(page.headers.get("referrer-policy")).toBe("no-referrer");
     expect(await page.text()).toContain("<!doctype html");
+  });
+
+  it("returns 404 for an empty session id instead of leaking the first session", async () => {
+    const s = await boot();
+    expect((await fetch(`${s.url}/api/sessions/`)).status).toBe(404);
+  });
+
+  it("returns 400 for malformed percent-encoding in a session id", async () => {
+    const s = await boot();
+    const res = await fetch(`${s.url}/api/sessions/%zz`);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("percent-encoding");
   });
 
   it("reflects spec, memory, and sessions through the same stores as the CLI", async () => {

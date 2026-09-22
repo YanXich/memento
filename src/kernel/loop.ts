@@ -285,7 +285,11 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       }
       const noProgress = !sawStart && !text && pendingCalls.size === 0;
       if (attempt === 0 && stopReason === "error" && retryableError && noProgress) {
-        // Reset and retry exactly once.
+        // Reset, back off briefly, retry exactly once. Instant retries just
+        // double-bounce off a 429 or a still-warm gateway; half a second of
+        // quiet is enough for most transient failures to clear.
+        await sleep(700, opts.signal);
+        if (opts.signal?.aborted) break;
         text = "";
         stopReason = "end";
         usage = emptyUsage();
@@ -473,3 +477,17 @@ function estimateMessageTokens(message: Message): number {
 }
 
 export { hasToolCalls };
+
+/** Abort-aware sleep — used for the one-shot retry backoff. */
+async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve();
+    const timer = setTimeout(done, ms);
+    function done(): void {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    }
+    signal?.addEventListener("abort", done, { once: true });
+  });
+}

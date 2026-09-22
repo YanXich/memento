@@ -79,6 +79,16 @@ describe("buildRepoMap", () => {
     expect(map.length).toBeLessThanOrEqual(1800);
     expect(map).toContain("truncated");
   });
+
+  it("non-source files cannot starve source files out of the map", () => {
+    // 2,500 non-source files walk before the one source file alphabetically —
+    // the old walk cap (2,000) would never even see `z.ts`.
+    for (let i = 0; i < 2_500; i++) write(`assets/${String(i).padStart(4, "0")}.png`, "x");
+    write("z.ts", "export function survives(): void {}\n");
+    const map = buildRepoMap(dir);
+    expect(map).toContain("z.ts");
+    expect(map).toContain("survives");
+  });
 });
 
 describe("applyPatchTool", () => {

@@ -89,7 +89,14 @@ export function buildRepoMap(root: string, opts: RepoMapOptions = {}): string {
   const maxSymbolsPerFile = opts.maxSymbolsPerFile ?? 40;
   const maxOutputChars = opts.maxOutputChars ?? 12_000;
 
-  const files = walkFiles(root, { ignore: MAP_IGNORE, maxFiles: 2000, maxDepth: 12 });
+  // The walk budget must exceed the selection cap by a wide margin: selection
+  // prefers symbol-bearing files, and a repo full of assets/docs must not
+  // starve source files out of the walk entirely (which would make the map a
+  // lottery of whatever alphabetical prefix fits).
+  const files = walkFiles(root, { ignore: MAP_IGNORE, maxFiles: 10_000, maxDepth: 12 });
+  // Reads are the expensive part — bound them even on source-only monorepos.
+  const maxSourceReads = maxFiles * 3;
+  let sourceReads = 0;
   const sketches: FileSketch[] = [];
   for (const abs of files) {
     const rel = path.relative(root, abs).split(path.sep).join("/");
@@ -103,7 +110,8 @@ export function buildRepoMap(root: string, opts: RepoMapOptions = {}): string {
     if (size > MAX_FILE_SIZE) continue;
     const lang = LANG_PATTERNS.find((p) => p.match.test(rel));
     const symbols: SymbolHit[] = [];
-    if (lang) {
+    if (lang && sourceReads < maxSourceReads) {
+      sourceReads += 1;
       let text: string;
       try {
         text = fs.readFileSync(abs, "utf8");
