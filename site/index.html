@@ -218,6 +218,7 @@
   <nav>
     <a href="#why">Why</a>
     <a href="#memory">Memory</a>
+    <a href="#new">What's new</a>
     <a href="#compare">Compare</a>
   </nav>
   <a class="gh" href="https://github.com/memento-agent/memento">GitHub ↗</a>
@@ -239,7 +240,7 @@
   </div>
   <div class="stats">
     <div class="s"><div class="n grad-text">4</div><div class="l">runtime deps</div></div>
-    <div class="s"><div class="n grad-text">113</div><div class="l">tests passing</div></div>
+    <div class="s"><div class="n grad-text">120</div><div class="l">tests passing</div></div>
     <div class="s"><div class="n grad-text">0</div><div class="l">databases</div></div>
     <div class="s"><div class="n grad-text">±0.30</div><div class="l">disproof &gt; proof</div></div>
   </div>
@@ -271,6 +272,25 @@
 <span class="c-brand">◈ session s_h8x2kd91mf</span> <span class="c-green">· done</span> <span class="c-dim">· 3 turn(s) · 8.2k in / 1.1k out</span></pre>
   </div>
 </div>
+
+<section class="block" id="new">
+  <h2>And then it <span class="grad-text">got measurable</span></h2>
+  <p class="lead">Memory isn't a claim, it's a number. The harness, the sub-agent, and the workbench all answer one question: <strong>what exactly did your agent learn — and what did it save?</strong></p>
+  <div class="grid4">
+    <div class="card"><span class="icon">🏁</span><span class="tag">bench</span>
+      <h3>Memory, benchmarked</h3>
+      <p><span class="mono">memento bench</span> runs a task family twice — cold, then warm — and prints the learning curve: turns and tokens saved by your memory. <span class="mono">--dry</span> is deterministic; <span class="mono">--json</span> pipes straight into CI.</p>
+    </div>
+    <div class="card"><span class="icon">🕸️</span><span class="tag">agent chain</span>
+      <h3>Sub-agents that report back</h3>
+      <p>The <span class="mono">subagent</span> tool dispatches a read-only explorer with its own mini-loop, its own session transcript, and a link back into your audit log. One level deep, zero recursion — exploration without runaway.</p>
+    </div>
+    <div class="card"><span class="icon">📈</span><span class="tag">observable</span>
+      <h3>Watch memory evolve</h3>
+      <p><span class="mono">memento web</span> opens a local workbench: confidence sparklines for every lesson, an event history per memory, and a resume hint when you return to a repo.</p>
+    </div>
+  </div>
+</section>
 
 <section class="block" id="why">
   <h2>Built around <span class="grad-text">four answers</span></h2>
@@ -318,6 +338,8 @@
       <tr><td>Runs in</td><td class="us">any terminal</td><td class="yes">any terminal</td><td class="no">VS Code only</td><td class="yes">any terminal</td></tr>
       <tr><td>MCP direction</td><td class="us">server + client</td><td class="no">—</td><td class="yes">client</td><td class="yes">client</td></tr>
       <tr><td>Memory is an artifact</td><td class="us">plain JSONL, diffable</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td>Memory benchmark</td><td class="us">built-in harness, --dry + --json</td><td class="yes">/benchmark suite</td><td class="no">—</td><td class="yes">bench suite</td></tr>
+      <tr><td>Sub-agent dispatch</td><td class="us">read-only explorer, one level</td><td class="no">—</td><td class="yes">plan/act modes</td><td class="yes">extensions</td></tr>
     </tbody>
   </table>
 </section>
@@ -335,7 +357,7 @@
 <footer>
   ◈ memento · <span class="mono">MIT</span> · plain files, no lock-in ·
   <span class="mono">.memento/</span> is yours to keep<br />
-  Built with 4 runtime dependencies — and 113 tests that prove it works.
+  Built with 4 runtime dependencies — and 120 tests that prove it works.
 </footer>
 
 </body>
