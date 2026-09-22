@@ -1,0 +1,5 @@
+{
+  "name": "session-digest",
+  "description": "Appends one line per finished session to .memento/session-digest.md — a plain-text history of what the agent did, surviving the terminal.",
+  "source": "examples/plugins/session-digest"
+}

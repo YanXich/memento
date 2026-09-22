@@ -121,7 +121,10 @@ export function verifySpec(root: string, bundle: SpecBundle, extra: SpecChecker[
   const issues: SpecIssue[] = [];
   for (const checker of checkers) {
     try {
-      issues.push(...checker.run(root, bundle));
+      const found = checker.run(root, bundle);
+      // The runner owns the checker attribution — plugin authors return
+      // issues with path/message only and must not remember to tag each one.
+      issues.push(...found.map((i) => (i.checker ? i : { ...i, checker: checker.name })));
     } catch (err) {
       issues.push({ severity: "warning", checker: checker.name, message: `checker crashed: ${(err as Error).message}` });
     }

@@ -116,7 +116,7 @@ export default {
 
 Every registration returns a **disposer**. Unloading a plugin reverses every registration it made — tools, event listeners, spec checkers. Plugins are guests, not residents.
 
-Sharing plugins is just as light: `memento plugins install owner/repo` (or any git URL, or a local path) copies a plugin package into `.memento/plugins/` with a provenance manifest — source, revision, install time — after listing the files it is about to copy and asking once. `memento plugins list` shows where every plugin came from, `memento plugins init` scaffolds one, and project installs stay covered by the same `trustProjectPlugins` checkout protection as hand-written plugins.
+Sharing plugins is just as light: `memento plugins install owner/repo` (or any git URL, or a local path) copies a plugin package into `.memento/plugins/` with a provenance manifest — source, revision, install time — after listing the files it is about to copy and asking once. `memento plugins list` shows where every plugin came from, `memento plugins init` scaffolds one, and project installs stay covered by the same `trustProjectPlugins` checkout protection as hand-written plugins. Three runnable starter packages live in [examples/plugins/](examples/plugins/) — a spec checker (todo-guard), a lifecycle watcher (session-digest) and a tool (now-tool).
 
 ### 4. Ecosystem native: MCP, git, undo, commit hints
 

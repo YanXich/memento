@@ -102,6 +102,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 原生 git 集成：只读 git_status/git_diff/git_log 工具 + diff 感知 commit 建议（含 untracked 文件）+ `memento undo` 撤销快照链
 - ✅ 子 agent 分派：内建 `subagent` 工具派出只读探索者（独立迷你循环 + 独立 JSONL 转录 + 主日志链指；只读工具带，无递归无写入）
 - ✅ 插件市场雏形：`memento plugins install owner/repo[#subdir]`（git URL/本地路径均可）+ 来源 manifest（source/rev/installedAt）+ 安全确认（先列文件再问）+ `list`/`init`/`remove`；loader 支持目录包形态（plugins/<name>/index.ts）
+- ✅ 官方示例插件（examples/plugins/）：todo-guard（spec checker）/ session-digest（生命周期钩子）/ now-tool（工具注册）+ 总览 README；`spec verify` 死通道修复（异步 attachPlugins，插件 checker 真正运行 + verifySpec 自动补 checker 归属）+ 回归测试
 - 验收：MCP 双通道 22 测试 + git/undo 15 测试全绿 ✅
 
 ### Phase 4 — 品牌与增长（进行中：品牌化 ✅ / 落地页 ⬜）

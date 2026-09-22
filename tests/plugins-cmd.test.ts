@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pluginsTask } from "../src/cli/commands/plugins.ts";
+import { specVerifyCmd } from "../src/cli/commands/spec.ts";
 import { loadPlugins } from "../src/plugins/loader.ts";
 import type { PluginHost } from "../src/plugins/loader.ts";
 import { ToolRegistry } from "../src/tools/types.ts";
@@ -141,6 +142,51 @@ describe("plugins install (git shorthand)", () => {
     const code = await pluginsTask({ action: "install", source: "octocat/mono#plugins/nested", root: dir, yes: true, git });
     expect(code).toBe(0);
     expect(fs.existsSync(path.join(dir, ".memento/plugins/from-manifest/index.ts"))).toBe(true);
+  });
+});
+
+describe("spec verify sees plugin checkers", () => {
+  it("runs a plugin-registered spec checker (install → trust → verify reports the issue)", async () => {
+    // A project with a TODO in source, a spec, and todo-guard installed + trusted.
+    fs.mkdirSync(path.join(dir, ".memento/spec"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".memento/spec/architecture.md"), "# Architecture\n");
+    fs.writeFileSync(path.join(dir, ".memento/config.json"), JSON.stringify({ trustProjectPlugins: true }));
+    fs.writeFileSync(path.join(dir, "app.ts"), "const x = 1; // TODO: refactor later\n");
+
+    const src = fs.mkdtempSync(path.join(os.tmpdir(), "memento-todo-src-"));
+    fs.mkdirSync(path.join(src, "todo-guard"), { recursive: true });
+    fs.writeFileSync(
+      path.join(src, "todo-guard", "index.ts"),
+      `import fs from "node:fs";
+import path from "node:path";
+export default {
+  name: "todo-guard",
+  setup(ctx) {
+    ctx.registerSpecChecker({
+      name: "todo-markers",
+      run(root) {
+        const issues = [];
+        for (const e of fs.readdirSync(root, { withFileTypes: true })) {
+          if (e.isFile() && e.name.endsWith(".ts")) {
+            const text = fs.readFileSync(path.join(root, e.name), "utf8");
+            if (text.includes("TODO")) issues.push({ path: e.name, message: "unresolved TODO in " + e.name });
+          }
+        }
+        return issues;
+      },
+    });
+  },
+};
+`,
+    );
+    expect(await pluginsTask({ action: "install", source: path.join(src, "todo-guard"), root: dir, yes: true })).toBe(0);
+
+    writes = [];
+    const code = await specVerifyCmd(dir);
+    expect(code).toBe(0); // warnings do not fail the gate; errors would
+    expect(writes.join("")).toContain("todo-markers");
+    expect(writes.join("")).toContain("unresolved TODO");
+    fs.rmSync(src, { recursive: true, force: true });
   });
 });
 

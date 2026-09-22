@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import pc from "picocolors";
-import { createWorkspace, resolveLlm } from "../workspace.ts";
+import { createWorkspace, attachPlugins, resolveLlm } from "../workspace.ts";
 import { scanRepo } from "../../spec/scanner.ts";
 import { decisionPath, generateInitialSpec } from "../../spec/generator.ts";
 import { loadSpecBundle, specStatus, writeSpec } from "../../spec/store.ts";
@@ -86,23 +86,30 @@ export function specStatusCmd(root: string): number {
   return 0;
 }
 
-export function specVerifyCmd(root: string, asJson = false): number {
+export async function specVerifyCmd(root: string, asJson = false): Promise<number> {
   const ws = createWorkspace(root);
-  const bundle = loadSpecBundle(ws.root);
-  const report = verifySpec(ws.root, bundle, ws.specCheckers);
-  if (asJson) {
-    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+  try {
+    // Plugin spec checkers load asynchronously (jiti) — verify must see them,
+    // otherwise a checker a plugin registered would silently never run.
+    await attachPlugins(ws);
+    const bundle = loadSpecBundle(ws.root);
+    const report = verifySpec(ws.root, bundle, ws.specCheckers);
+    if (asJson) {
+      process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+      return report.passed ? 0 : 1;
+    }
+    process.stdout.write(
+      `\nspec verify — ${report.passed ? pc.green("passed") : pc.red("failed")} · ${report.checked} file(s) · ${report.issues.length} issue(s)\n`,
+    );
+    for (const issue of report.issues) {
+      const tag = issue.severity === "error" ? pc.red("error") : issue.severity === "warning" ? pc.yellow("warn ") : pc.dim("info ");
+      process.stdout.write(`  ${tag} [${issue.checker}] ${issue.file ? issue.file + ": " : ""}${issue.message}\n`);
+    }
+    if (report.issues.length === 0) process.stdout.write(pc.dim("  every checkable claim in the spec holds\n"));
     return report.passed ? 0 : 1;
+  } finally {
+    await ws.close();
   }
-  process.stdout.write(
-    `\nspec verify — ${report.passed ? pc.green("passed") : pc.red("failed")} · ${report.checked} file(s) · ${report.issues.length} issue(s)\n`,
-  );
-  for (const issue of report.issues) {
-    const tag = issue.severity === "error" ? pc.red("error") : issue.severity === "warning" ? pc.yellow("warn ") : pc.dim("info ");
-    process.stdout.write(`  ${tag} [${issue.checker}] ${issue.file ? issue.file + ": " : ""}${issue.message}\n`);
-  }
-  if (report.issues.length === 0) process.stdout.write(pc.dim("  every checkable claim in the spec holds\n"));
-  return report.passed ? 0 : 1;
 }
 
 export function specShowCmd(root: string, file?: string): number {

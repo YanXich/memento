@@ -1,0 +1,5 @@
+{
+  "name": "now-tool",
+  "description": "Gives the agent a `now` tool — current date/time in ISO 8601 and epoch, because models have no clock.",
+  "source": "examples/plugins/now-tool"
+}

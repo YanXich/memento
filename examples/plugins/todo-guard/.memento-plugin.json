@@ -1,0 +1,5 @@
+{
+  "name": "todo-guard",
+  "description": "A spec checker that surfaces unresolved TODO/TBD/FIXME markers in source files, so 'later' never rots silently.",
+  "source": "examples/plugins/todo-guard"
+}

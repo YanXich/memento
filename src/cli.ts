@@ -181,8 +181,8 @@ spec
   .description("check the spec's claims against the tree (no LLM)")
   .option(...cwdOption)
   .option("--json", "machine-readable output")
-  .action((opts) => {
-    process.exitCode = specVerifyCmd(rootOf(opts), Boolean(opts.json));
+  .action(async (opts) => {
+    process.exitCode = await specVerifyCmd(rootOf(opts), Boolean(opts.json));
   });
 
 spec
