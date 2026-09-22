@@ -342,22 +342,6 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       return { call, check };
     });
 
-    const toolCtx: ToolContext = {
-      cwd: opts.cwd ?? process.cwd(),
-      ...(opts.signal ? { signal: opts.signal } : {}),
-      progress: () => {},
-      approve: async () => false,
-      // Tools that spawn their own mini-loop (subagent) reuse the parent's
-      // provider; tools that audit (subagent) get the parent's session log.
-      llm: {
-        provider: opts.provider,
-        model: opts.model,
-        ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
-        ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
-      },
-      session: opts.session,
-    };
-
     // Runs preserve the model's call order end to end: consecutive read-only
     // calls form one run (executed in parallel — independent reads are the
     // common case), while every mutating/approval-gated call forms its own
@@ -387,6 +371,25 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       }
       const tool = opts.registry.get(call.name)!;
       const args = check.args as Record<string, unknown>;
+
+      // The tool context is built per call: progress carries the tool name,
+      // and approve forwards to the loop's real policy — a tool asking for
+      // approval gets exactly the same answer the loop would have given.
+      const toolCtx: ToolContext = {
+        cwd: opts.cwd ?? process.cwd(),
+        ...(opts.signal ? { signal: opts.signal } : {}),
+        progress: (line) => void bus.emit({ type: "tool_progress", tool: call.name, line }),
+        approve: (req) => (opts.approve ? opts.approve(req.tool, req.args) : Promise.resolve(false)),
+        // Tools that spawn their own mini-loop (subagent) reuse the parent's
+        // provider; tools that audit (subagent) get the parent's session log.
+        llm: {
+          provider: opts.provider,
+          model: opts.model,
+          ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+          ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+        },
+        session: opts.session,
+      };
 
       const blocked = await opts.hooks?.beforeTool?.(call, args);
       if (blocked) {

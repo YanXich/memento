@@ -15,7 +15,7 @@
  */
 import path from "node:path";
 import { z } from "zod";
-import type { Tool } from "../types.ts";
+import type { Tool, ToolContext } from "../types.ts";
 import { ToolRegistry } from "../types.ts";
 import { SessionLog } from "../../kernel/session.ts";
 import { runLoop } from "../../kernel/loop.ts";
@@ -91,7 +91,9 @@ export const subagentTool: Tool = {
           system: SUBAGENT_SYSTEM,
           registry,
           session: subSession,
-          bus: new EventBus(),
+          // Sub-agent progress surfaces in the parent's UI instead of being
+          // swallowed: every tool_progress line is prefixed and forwarded.
+          bus: makeSubBus(ctx),
           cwd: ctx.cwd,
           maxTurns: SUBAGENT_MAX_TURNS,
           compactAt: 0.8,
@@ -129,6 +131,15 @@ export const subagentTool: Tool = {
     }
   },
 };
+
+/** A sub-agent event bus that forwards tool progress to the parent's UI. */
+function makeSubBus(ctx: ToolContext): EventBus {
+  const bus = new EventBus();
+  bus.on((e) => {
+    if (e.type === "tool_progress") ctx.progress(`${e.tool}: ${e.line}`);
+  });
+  return bus;
+}
 
 /** The final assistant text of a loop — the sub-agent's condensed answer. */
 function lastAssistantText(messages: Message[]): string {

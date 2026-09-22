@@ -15,6 +15,7 @@ export type AgentEvent =
   | { type: "thinking_delta"; text: string }
   | { type: "message_end"; message: Message }
   | { type: "tool_start"; call: ToolCallBlock }
+  | { type: "tool_progress"; tool: string; line: string }
   | { type: "tool_end"; call: ToolCallBlock; result: Message }
   | { type: "tools_blocked"; reason: string; calls: ToolCallBlock[] }
   | { type: "context_compacted"; replacedTokens: number; summaryTokens: number }

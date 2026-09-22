@@ -36,7 +36,7 @@
 
 | 编号 | 问题 | 状态 |
 |------|------|----------|
-| M8 | ToolContext progress/approve 死通道（工具拿不到真实进度/审批） | ⬜ 未做（P2） |
+| M8 | ToolContext progress/approve 死通道（工具拿不到真实进度/审批） | ✅ 已修（progress 带工具名入事件总线 tool_progress；approve 转发循环真实策略，无策略默认拒绝；子 agent 进度转发到父 UI）+ 回归测试 |
 | M12 | web server 同步读 O(2×N) | ⬜ 未做（P2） |
 
 Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一次，含 429/5xx/中流断线，回归测试 kernel.test.ts）、M5（CJK token 双权重估算）、M6（lessons.jsonl O_APPEND 单行原子性 + 并发契约）、M10（approver 响应 abort signal）、M11（插件 API 形状收紧——BeforeLlmPatch 仅可改 system，无法伪造消息角色）、M13（插件加载失败显式警告）。

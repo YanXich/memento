@@ -46,6 +46,81 @@ function userMessage(text: string): Message {
 }
 
 describe("runLoop", () => {
+  it("forwards real approve + progress through ToolContext", async () => {
+    const approvals: Array<{ tool: string; args: Record<string, unknown> }> = [];
+    const progressLines: Array<{ tool: string; line: string }> = [];
+    const provider = createMockProvider([
+      { toolCalls: [{ name: "probe", args: { kind: "a" } }] },
+      { text: "Done." },
+    ]);
+    const registry = new ToolRegistry();
+    registry.register({
+      name: "probe",
+      description: "probe the tool context",
+      schema: z.object({ kind: z.string() }),
+      async execute(args, ctx) {
+        const a = args as { kind: string };
+        const ok = await ctx.approve({ tool: "probe", description: "touch a file", args: a });
+        ctx.progress("mid-flight detail");
+        return { output: ok ? "approved" : "denied" };
+      },
+    });
+    const session = newSession();
+    const bus = new EventBus();
+    bus.on((e) => {
+      if (e.type === "tool_progress") progressLines.push({ tool: e.tool, line: e.line });
+    });
+
+    const result = await runLoop(
+      {
+        provider,
+        model: MOCK_MODEL,
+        system: "test",
+        registry,
+        session,
+        bus,
+        approve: async (tool, args) => {
+          approvals.push({ tool, args });
+          return true;
+        },
+      },
+      [userMessage("probe it")],
+    );
+
+    expect(result.status).toBe("done");
+    // The tool's approval request reached the loop's real policy.
+    expect(approvals).toEqual([{ tool: "probe", args: { kind: "a" } }]);
+    // Progress lines carry the emitting tool's name.
+    expect(progressLines).toEqual([{ tool: "probe", line: "mid-flight detail" }]);
+  });
+
+  it("ToolContext.approve denies when the loop has no approval policy", async () => {
+    const provider = createMockProvider([
+      { toolCalls: [{ name: "probe", args: { kind: "b" } }] },
+      { text: "Done." },
+    ]);
+    const registry = new ToolRegistry();
+    registry.register({
+      name: "probe",
+      description: "probe the tool context",
+      schema: z.object({ kind: z.string() }),
+      async execute(args, ctx) {
+        const a = args as { kind: string };
+        const ok = await ctx.approve({ tool: "probe", description: "risky", args: a });
+        return { output: ok ? "approved" : "denied" };
+      },
+    });
+    const session = newSession();
+    const bus = new EventBus();
+    const result = await runLoop(
+      { provider, model: MOCK_MODEL, system: "test", registry, session, bus },
+      [userMessage("probe it")],
+    );
+    expect(result.status).toBe("done");
+    // Default-deny: without a policy, the tool's request is refused.
+    expect(result.messages.some((m) => JSON.stringify(m).includes("denied"))).toBe(true);
+  });
+
   it("executes a tool call, writes the file, and logs everything", async () => {
     const provider = createMockProvider([
       { toolCalls: [{ name: "write", args: { path: "hello.txt", content: "from the model" } }] },

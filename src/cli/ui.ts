@@ -79,6 +79,9 @@ export class SessionRenderer {
         process.stdout.write(pc.magenta("⏺ ") + pc.cyan(event.call.name) + pc.dim(preview ? `(${preview})` : "") + "\n");
         break;
       }
+      case "tool_progress":
+        process.stdout.write(pc.dim(`  … ${event.line}\n`));
+        break;
       case "tool_end": {
         const block = event.result.content.find((b) => b.type === "toolResult") as
           | { content: string; isError?: boolean }
