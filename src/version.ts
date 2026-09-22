@@ -4,4 +4,4 @@
  */
 declare const __MEMENTO_VERSION__: string | undefined;
 
-export const VERSION: string = typeof __MEMENTO_VERSION__ === "string" ? __MEMENTO_VERSION__ : "0.1.0-dev";
+export const VERSION: string = typeof __MEMENTO_VERSION__ === "string" ? __MEMENTO_VERSION__ : "0.2.0-dev";

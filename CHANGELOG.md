@@ -1,0 +1,85 @@
+# Changelog
+
+All notable changes to memento are documented here. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project versions with
+[SemVer](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] — the agent that learns, measured
+
+### Added
+
+- **`memento chat`** — interactive REPL over the same agent loop: one persistent
+  session log, per-message memory recall (topics switch cleanly), inline tool
+  approvals, one reflection pass at exit that distils the whole conversation into
+  memory; `--session <id>` resumes any conversation.
+- **Memory benchmark harness** — `memento bench tasks.json` runs a task family cold
+  (pristine copy, no memory) vs warm (recalled lessons) and prints the learning
+  curve in turns and tokens. `--dry` is a deterministic zero-network provider for
+  CI and demos; `--json` feeds automation; `--no-cold` draws the warm curve only.
+- **Parallel benchmark schedule** — cold copies fan out over a worker pool
+  (`--jobs <n>`) while the warm chain (which must stay sequential — each task
+  inherits memory) rides its own worker; parallel and sequential schedules produce
+  identical results.
+- **`bench --report <path>`** — brand-styled, standalone, no-CDN HTML report with
+  the learning-curve chart; commit it to GitHub Pages as-is.
+- **Public benchmark leaderboard** — `site/benchmarks/` renders submitted results
+  from static JSON; `npm run merge-bench` merges a `--json` run into it. Contributing
+  a data point is a PR, nothing else.
+- **Memory as code** — `memento memory export` / `import`: commit an export,
+  teammates import it into a fresh clone. Idempotent (same id or claim never
+  duplicated) with provenance markers on every imported lesson.
+- **Subagent explorer** — the built-in `subagent` tool dispatches a read-only
+  explorer for one question: it reads/greps the repo in its own mini-loop and
+  returns a condensed answer, so long file dumps never bloat the parent context.
+  Sub-sessions get their own JSONL transcript linked from the parent log; no
+  recursion, no writes.
+- **Memory evolution visualization** — the web workbench draws a confidence
+  sparkline and an event timeline (created/reinforced/contradicted/retired) for
+  every lesson; `?evol` deep-links to it.
+- **Branded landing page** — animated terminal demo, cold-vs-warm learning-curve
+  chart, chat showcase, OG/Twitter cards; static, CDN-free, GitHub Pages ready.
+
+### Fixed
+
+- **M8** — ToolContext `progress`/`approve` were dead channels inside tools; wired
+  to the real event bus and approval loop (subagent progress forwards to the
+  parent UI).
+- **M12** — the web server re-read sessions on every poll (O(2×N) sync reads);
+  replaced with single-pass scanning plus a stamp cache and ETag 304 incremental
+  reads.
+
+### Changed
+
+- README restructured around the four-answer positioning (memory / spec / plugins /
+  ecosystem-native), with a full CLI table and the security model.
+- Landmark test suite grew to **136 tests**: safety regressions, parallel timing,
+  MCP dual channel, git/undo, commit hints, resume, chat REPL, memory evolution
+  and the parallel bench schedule.
+
+## [0.1.0] — the coding agent that remembers
+
+Initial release.
+
+### Added
+
+- **SDD loop** — RECALL → GATE → BUILD → VERIFY → REFLECT with a deterministic
+  spec checker (never calls the LLM) and confidence-weighted memory: +0.15 on
+  confirmation, −0.30 on contradiction, retired below 0.12.
+- **Durable lessons** — `lessons.jsonl` with O_APPEND single-line atomic writes;
+  recall into the system prompt is term-overlap matched.
+- **Session log invariant** — everything the model saw is what the log recorded
+  (JSONL transcripts); `memento sessions` / `show` / `resume` inspect and continue
+  interrupted runs with full transcript replay into the same log.
+- **Plugin system** — lifecycle hooks with a tightened API surface (a
+  `BeforeLlmPatch` may only edit the system text — it cannot forge message roles).
+- **Event bus** — snapshot semantics, exception isolation, circuit breaking.
+- **Parallel tool batches** — consecutive read-only tools run in parallel, writes
+  stay ordered.
+- **MCP client** — stdio transport over a hand-written JSON-RPC 2.0 wire layer;
+  trust model: user-level config only unless `trustProjectMcp: true`.
+- **`memento serve-mcp`** — expose lessons to other agents
+  (`search_lessons` / `add_lesson` / `memory_stats`).
+- **Safety rails** — request timeout with one retry (429/5xx/mid-stream), CJK
+  token estimation, shell timeout/orphan-process kill (Windows `taskkill /T`,
+  POSIX process-group kill), output truncation in O(1) per chunk, approval
+  abort signals.

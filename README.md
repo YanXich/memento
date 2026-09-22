@@ -282,6 +282,13 @@ Contributing: `npm run check` must be green (typecheck + tests). Tests drive the
 
 ---
 
+## Docs
+
+- [CHANGELOG.md](CHANGELOG.md) — what changed, release by release
+- [docs/BENCHMARK.md](docs/BENCHMARK.md) — the memory benchmark: what it measures, why it's honest, how to submit
+- [docs/ROADMAP-100K.md](docs/ROADMAP-100K.md) — the road to 100k stars: levers, phases, trade-offs
+- [docs/COMPARISON.md](docs/COMPARISON.md) — an honest comparison with the projects we learned from
+
 ## Credits
 
 Memento stands on two projects we studied, ran, and learned from:
