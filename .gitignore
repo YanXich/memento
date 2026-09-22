@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Memento runtime artifacts (keep spec/, ignore transient state)
+.memento/sessions/
+.memento/tmp/
+.memento/config.local.json
+
+# Demo workspace created by scripts/demo.mjs
+.demo/
+
+# Screenshot/verification artifacts
+_shots/

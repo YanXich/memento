@@ -1,0 +1,488 @@
+<!doctype html>
+<!--
+  memento workbench — the browser half of `memento web`.
+
+  One dependency-free document: no framework, no bundler, no CDN. It only
+  talks to the local JSON API (see server.ts) with fetch. Keep it that way —
+  the workbench must load in an air-gapped browser.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>memento — workbench</title>
+<style>
+  :root {
+    --bg: #0d0c15;
+    --panel: #16141f;
+    --raise: #1c1a29;
+    --line: #2a2737;
+    --line-soft: #201d2e;
+    --ink: #e9e7f2;
+    --sub: #a8a3bd;
+    --faint: #6f6a85;
+    /* brand: fresh violet + water */
+    --violet: #a78bfa;
+    --violet-deep: #7c5cf0;
+    --aqua: #6fe3d0;
+    --aqua-soft: rgba(111, 227, 208, 0.12);
+    --violet-soft: rgba(167, 139, 250, 0.13);
+    --grad: linear-gradient(120deg, var(--violet) 0%, var(--aqua) 100%);
+    /* semantic */
+    --amber: #d9a15f;
+    --amber-soft: rgba(217, 161, 95, 0.14);
+    --green: #7fd8a4;
+    --red: #e08a8a;
+    --blue: #67c8e8;
+    --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(900px 420px at 82% -12%, rgba(124, 92, 240, 0.14), transparent 62%),
+      radial-gradient(760px 340px at -8% 4%, rgba(111, 227, 208, 0.07), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--ink);
+    font: 14px/1.55 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--violet); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+
+  /* ---------------------------------------------------------------- shell */
+  header.bar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 22px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  /* the water line — a thin gradient ribbon across the top */
+  header.bar::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: var(--grad); opacity: 0.85;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; font-weight: 650; letter-spacing: 0.2px; }
+  .brand .glyph {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-size: 16px;
+  }
+  .brand .ver { color: var(--faint); font: 11px var(--mono); }
+  .ws-path { color: var(--faint); font: 12px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55vw; }
+
+  nav.tabs { display: flex; gap: 22px; padding: 0 22px; border-bottom: 1px solid var(--line-soft); }
+  nav.tabs button {
+    padding: 11px 2px 9px; color: var(--sub); font-size: 13.5px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.active { color: var(--ink); border-image: var(--grad) 1; border-bottom: 2px solid var(--violet); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 26px 22px 80px; }
+  h1 { font-size: 19px; font-weight: 650; margin: 0 0 4px; }
+  h2 { font-size: 14px; font-weight: 650; color: var(--sub); text-transform: uppercase; letter-spacing: 0.7px; margin: 30px 0 12px; }
+  .dim { color: var(--sub); } .faint { color: var(--faint); }
+  .mono { font-family: var(--mono); }
+  .empty { color: var(--faint); padding: 30px 0; }
+
+  /* -------------------------------------------------------------- overview */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 15px 16px 13px; }
+  .stat .n { font-size: 26px; font-weight: 630; font-family: var(--mono); letter-spacing: -0.5px; }
+  .stat .n small { font-size: 13px; color: var(--faint); font-weight: 400; }
+  .stat .l { color: var(--sub); font-size: 12.5px; margin-top: 3px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 26px; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .mini-list { display: flex; flex-direction: column; gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden; }
+  .mini { background: var(--panel); padding: 11px 14px; display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; }
+  button.mini:hover { background: var(--raise); }
+  .mini .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini .m { color: var(--faint); font: 11.5px var(--mono); white-space: nowrap; }
+
+  /* -------------------------------------------------------------- sessions */
+  table.list { width: 100%; border-collapse: collapse; }
+  table.list th {
+    text-align: left; color: var(--faint); font: 11px var(--mono); text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 6px 10px; border-bottom: 1px solid var(--line);
+  }
+  table.list td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  table.list tr.click { cursor: pointer; }
+  table.list tr.click:hover td { background: var(--panel); }
+  .sid { font: 12px var(--mono); color: var(--violet); }
+
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font: 11px var(--mono); border: 1px solid var(--line); color: var(--sub); white-space: nowrap;
+  }
+  .badge.done { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, var(--line)); }
+  .badge.error { color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, var(--line)); }
+  .badge.aborted, .badge.max_turns { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 35%, var(--line)); }
+
+  /* session detail timeline */
+  .back { color: var(--sub); font-size: 13px; }
+  .back:hover { color: var(--ink); }
+  .session-head { margin: 14px 0 6px; }
+  .session-head .task { font-size: 17px; font-weight: 620; margin: 6px 0; }
+  .timeline { margin-top: 18px; border-left: 1px solid var(--line); padding-left: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .tl { position: relative; }
+  .tl::before {
+    content: ""; position: absolute; left: -25px; top: 7px; width: 9px; height: 9px;
+    border-radius: 50%; background: var(--bg); border: 2px solid var(--faint);
+  }
+  .tl.user::before { border-color: var(--violet); background: var(--violet-soft); }
+  .tl.assistant::before { border-color: var(--aqua); background: var(--aqua-soft); }
+  .tl.tool::before { border-color: var(--line); background: var(--line); }
+  .tl.note::before { border-color: transparent; background: var(--faint); }
+  .tl .who { font: 11px var(--mono); color: var(--faint); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 15px; }
+  .card.err { border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+  .tl .card { background: transparent; }
+  .toolcall { font: 12.5px var(--mono); color: var(--ink); }
+  .toolcall .name { color: var(--violet); }
+  details.args { margin-top: 6px; }
+  details.args summary { cursor: pointer; color: var(--faint); font-size: 12px; }
+  details.args pre, pre.block {
+    margin: 8px 0 0; padding: 10px 12px; background: #101116; border: 1px solid var(--line-soft);
+    border-radius: 8px; overflow-x: auto; font: 12px/1.5 var(--mono); color: var(--sub); white-space: pre-wrap; word-break: break-word;
+  }
+  .note-line { color: var(--faint); font-style: italic; font-size: 12.5px; }
+  .endbar { display: flex; gap: 10px; align-items: center; color: var(--sub); font-size: 12.5px; }
+
+  /* ---------------------------------------------------------------- memory */
+  .lesson { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .lesson.retired { opacity: 0.55; }
+  .lesson .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .lesson .text { margin: 9px 0 8px; font-size: 14px; }
+  .conf { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+  .conf-bar { flex: 1; height: 5px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+  .conf-bar i { display: block; height: 100%; background: var(--grad); border-radius: 3px; }
+  .conf-bar i.med { opacity: 0.7; } .conf-bar i.low { opacity: 0.42; } .conf-bar i.ret { background: var(--faint); }
+  .conf .num { font: 12px var(--mono); color: var(--sub); width: 34px; text-align: right; }
+  .meta { color: var(--faint); font: 11.5px var(--mono); display: flex; gap: 14px; flex-wrap: wrap; }
+  details.evidence { margin-top: 7px; }
+  details.evidence summary { cursor: pointer; color: var(--faint); font-size: 12px; }
+  details.evidence ul { margin: 6px 0 2px; padding-left: 18px; color: var(--sub); font-size: 12.5px; }
+
+  /* ------------------------------------------------------------------ spec */
+  .spec-grid { display: grid; grid-template-columns: 250px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .spec-grid { grid-template-columns: 1fr; } }
+  .spec-nav { position: sticky; top: 110px; display: flex; flex-direction: column; gap: 2px; }
+  .spec-nav .grp { color: var(--faint); font: 10.5px var(--mono); text-transform: uppercase; letter-spacing: 0.7px; margin: 12px 0 4px; }
+  .spec-nav button { text-align: left; padding: 5px 9px; border-radius: 7px; color: var(--sub); font-size: 13px; }
+  .spec-nav button:hover { background: var(--panel); color: var(--ink); }
+  .spec-nav button.active { background: var(--panel); color: var(--ink); box-shadow: inset 2px 0 0 var(--violet); }
+  .md { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 26px; overflow-wrap: break-word; }
+  .md h1 { font-size: 21px; margin: 4px 0 14px; }
+  .md h2 { font-size: 16px; margin: 22px 0 10px; text-transform: none; letter-spacing: 0; color: var(--ink); border-bottom: 1px solid var(--line-soft); padding-bottom: 5px; }
+  .md h3 { font-size: 14px; margin: 18px 0 8px; }
+  .md p { margin: 9px 0; }
+  .md ul { margin: 8px 0; padding-left: 22px; }
+  .md li { margin: 3px 0; }
+  .md code { font: 12.5px var(--mono); background: var(--raise); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 5px; }
+  .md pre { background: #101116; border: 1px solid var(--line-soft); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+  .md pre code { background: none; border: 0; padding: 0; font-size: 12px; line-height: 1.55; }
+  .md hr { border: 0; border-top: 1px solid var(--line-soft); margin: 20px 0; }
+  .md blockquote { border-left: 3px solid var(--line); margin: 10px 0; padding: 2px 0 2px 14px; color: var(--sub); }
+  .md .chk { color: var(--green); }
+
+  footer { color: var(--faint); font-size: 12px; text-align: center; padding: 30px 0 40px; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="glyph">◈</span>memento <span class="ver" id="ver"></span></div>
+  <div class="ws-path mono" id="ws"></div>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-view="overview">Overview</button>
+  <button data-view="sessions">Sessions</button>
+  <button data-view="memory">Memory</button>
+  <button data-view="spec">Spec</button>
+</nav>
+<main id="main"><div class="empty">loading…</div></main>
+<footer>memento workbench · read-only · everything below lives in <span class="mono">.memento/</span></footer>
+
+<script>
+"use strict";
+/* ---------------------------------------------------------------- helpers */
+const $ = (sel, el) => (el || document).querySelector(sel);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const api = async (p) => {
+  const r = await fetch(p, { headers: { accept: "application/json" } });
+  if (!r.ok) throw new Error(p + " → HTTP " + r.status);
+  return r.json();
+};
+const fmtTime = (ts) => new Date(ts).toISOString().replace("T", " ").slice(0, 16);
+const relTime = (ts) => {
+  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+};
+const KIND_TONE = { constraint: "var(--violet)", pattern: "var(--aqua)", failure: "var(--red)", preference: "var(--green)", discovery: "var(--sub)" };
+const kindBadge = (k) => '<span class="badge" style="color:' + (KIND_TONE[k] || "var(--sub)") + '">' + esc(k) + "</span>";
+const statusBadge = (s) => '<span class="badge ' + esc(s) + '">' + esc(s) + "</span>";
+const confBar = (c, retired) => {
+  const pct = Math.round(c * 100);
+  const cls = retired ? "ret" : c >= 0.7 ? "" : c >= 0.45 ? "med" : "low";
+  return '<span class="conf"><span class="conf-bar"><i class="' + cls + '" style="width:' + pct + '%"></i></span><span class="num">' + c.toFixed(2) + "</span></span>";
+};
+const truncate = (s, n) => (s.length > n ? s.slice(0, n) + " …" : s);
+
+/* --------------------------------------------------- mini markdown render */
+function mdInline(s) {
+  return s
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:|#|\/)[^)]*\)/g, '$1');
+}
+function mdToHtml(src) {
+  const lines = esc(src).split(/\r?\n/);
+  const out = [];
+  let inCode = false, list = null;
+  const closeList = () => { if (list) { out.push("</" + list + ">"); list = null; } };
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) { closeList(); if (inCode) { out.push("</code></pre>"); } else { out.push("<pre><code>"); } inCode = !inCode; continue; }
+    if (inCode) { out.push(line); continue; }
+    if (/^\s*$/.test(line)) { closeList(); continue; }
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if (h) { closeList(); out.push("<h" + h[1].length + ">" + mdInline(h[2]) + "</h" + h[1].length + ">"); continue; }
+    if (/^(---|\*\*\*)\s*$/.test(line)) { closeList(); out.push("<hr>"); continue; }
+    if (/^&gt;\s?/.test(line)) { closeList(); out.push("<blockquote>" + mdInline(line.replace(/^&gt;\s?/, "")) + "</blockquote>"); continue; }
+    const chk = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.*)$/);
+    if (chk) {
+      if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+      out.push('<li><span class="chk">' + (chk[1].trim() ? "✓" : "○") + "</span> " + mdInline(chk[2]) + "</li>");
+      continue;
+    }
+    const li = line.match(/^\s*(?:[-*]|\d+\.)\s+(.*)$/);
+    if (li) {
+      if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+      out.push("<li>" + mdInline(li[1]) + "</li>");
+      continue;
+    }
+    closeList();
+    out.push("<p>" + mdInline(line) + "</p>");
+  }
+  closeList();
+  if (inCode) out.push("</code></pre>");
+  return out.join("\n");
+}
+
+/* ----------------------------------------------------------------- views */
+let ov = null; // overview cache
+const main = () => $("#main");
+const setTabs = (view) => document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+
+async function renderOverview() {
+  setTabs("overview");
+  ov = ov || (await api("/api/overview"));
+  const m = ov.memory, s = ov.spec;
+  main().innerHTML =
+    '<h1>Workbench</h1><div class="dim">Everything memento has learned about <span class="mono">' + esc(ov.root) + "</span></div>" +
+    '<h2>At a glance</h2>' +
+    '<div class="stat-grid">' +
+      '<div class="stat"><div class="n">' + s.files + "</div><div class=\'l\'>spec file" + (s.files === 1 ? "" : "s") + " · " + s.features + " features · " + s.decisions + " ADRs</div></div>" +
+      '<div class="stat"><div class="n">' + m.active + '<small> / ' + (m.active + m.retired) + "</small></div><div class='l'>active lessons · " + m.retired + " retired</div></div>" +
+      '<div class="stat"><div class="n">' + m.avgConfidence.toFixed(2) + "</div><div class='l'>avg confidence across memory</div></div>" +
+      '<div class="stat"><div class="n">' + ov.sessions.total + "</div><div class='l'>recorded session" + (ov.sessions.total === 1 ? "" : "s") + "</div></div>" +
+    "</div>" +
+    '<div class="cols">' +
+      "<div><h2>Recent sessions</h2>" + miniSessions(ov.sessions.recent) + "</div>" +
+      "<div><h2>Latest lessons</h2>" + miniLessons(ov.lessons.recent) + "</div>" +
+    "</div>" +
+    '<h2>Runtime</h2><div class="dim">model <span class="mono">' + esc(ov.model.provider || "—") + "/" + esc(ov.model.model || "—") + "</span>" +
+    " · memento v" + esc(ov.version) + "</div>";
+}
+
+function miniSessions(items) {
+  if (!items.length) return '<div class="empty">no sessions yet — run <span class="mono">memento run "…"</span></div>';
+  return '<div class="mini-list">' + items.map((s) =>
+    '<button class="mini" onclick="location.hash=\'#/sessions/' + esc(s.id) + '\'">' +
+      '<span class="badge ' + esc(s.status) + '">' + esc(s.status) + "</span>" +
+      '<span class="t">' + esc(truncate(s.task, 80)) + "</span>" +
+      '<span class="m">' + relTime(s.startedAt) + "</span>" +
+    "</button>").join("") + "</div>";
+}
+function miniLessons(items) {
+  if (!items.length) return '<div class="empty">memory is empty — lessons appear after sessions reflect</div>';
+  return '<div class="mini-list">' + items.map((l) =>
+    '<div class="mini">' + confBar(l.confidence, false) + '<span class="t">' + esc(truncate(l.text, 90)) + "</span></div>").join("") + "</div>";
+}
+
+async function renderSessions() {
+  setTabs("sessions");
+  const data = await api("/api/sessions");
+  if (!data.sessions.length) {
+    main().innerHTML = "<h1>Sessions</h1>" + '<div class="empty">no sessions yet — run <span class="mono">memento run "your task"</span></div>';
+    return;
+  }
+  main().innerHTML = "<h1>Sessions</h1><div class='dim'>" + data.sessions.length + " recorded · click to replay what the model saw</div>" +
+    '<table class="list" style="margin-top:16px"><thead><tr><th>session</th><th>status</th><th>task</th><th>turns</th><th>model</th><th>started</th></tr></thead><tbody>' +
+    data.sessions.map((s) =>
+      '<tr class="click" onclick="location.hash=\'#/sessions/' + esc(s.id) + '\'">' +
+        '<td class="sid">' + esc(s.id) + "</td><td>" + statusBadge(s.status) + "</td>" +
+        "<td>" + esc(truncate(s.task, 70)) + "</td>" +
+        '<td class="mono">' + (s.turns == null ? "—" : s.turns) + "</td>" +
+        '<td class="mono" style="color:var(--faint)">' + esc(s.provider + "/" + s.model) + "</td>" +
+        '<td class="mono" style="color:var(--faint)">' + fmtTime(s.startedAt) + "</td></tr>").join("") +
+    "</tbody></table>";
+}
+
+async function renderSessionDetail(id) {
+  setTabs("sessions");
+  const d = await api("/api/sessions/" + encodeURIComponent(id));
+  const h = d.header;
+  const parts = ['<button class="back" onclick="location.hash=\'#/sessions\'">← all sessions</button>'];
+  parts.push('<div class="session-head"><div style="display:flex;gap:10px;align-items:center">' + statusBadge(d.status) +
+    '<span class="mono faint">' + esc(h.sessionId) + "</span></div>" +
+    '<div class="task">' + esc(h.task) + "</div>" +
+    '<div class="meta"><span>' + fmtTime(h.startedAt) + "</span><span>" + esc(h.provider + "/" + h.model) + "</span><span>" + esc(h.cwd) + "</span></div></div>");
+  parts.push('<div class="timeline">');
+  for (const e of d.entries) parts.push(entryHtml(e));
+  parts.push("</div>");
+  main().innerHTML = parts.join("");
+}
+
+function entryHtml(e) {
+  if (e.kind === "header") return "";
+  if (e.kind === "usage") {
+    const u = e.usage;
+    return '<div class="tl note"><div class="note-line">usage · ' + (u.inputTokens || 0) + " in / " + (u.outputTokens || 0) + " out</div></div>";
+  }
+  if (e.kind === "note") {
+    return '<div class="tl note"><div class="note-line">' + esc(e.text) + "</div></div>";
+  }
+  if (e.kind === "compaction") {
+    return '<div class="tl note"><div class="card" style="border-style:dashed"><div class="who">compaction</div><div class="dim">' +
+      esc(e.replacedCount) + " messages folded into a summary (" + esc(e.tokensSaved) + " tokens saved)</div>" +
+      "<details class='args'><summary>summary</summary><pre>" + esc(e.summary) + "</pre></details></div></div>";
+  }
+  if (e.kind === "result") {
+    return '<div class="tl"><div class="endbar">' + statusBadge(e.status) + "<span>session ended after " + esc(e.turns) + " turn(s)" + (e.summary ? " · " + esc(truncate(e.summary, 120)) : "") + "</span></div></div>";
+  }
+  // message entries
+  const msg = e.message;
+  const blocks = [];
+  for (const b of msg.content || []) {
+    if (b.type === "text" && b.text.trim()) blocks.push("<div>" + esc(b.text) + "</div>");
+    else if (b.type === "thinking" && b.text.trim()) blocks.push("<details class='args'><summary>thinking</summary><pre>" + esc(b.text) + "</pre></details>");
+    else if (b.type === "toolCall") blocks.push(
+      '<div class="toolcall">⏵ <span class="name">' + esc(b.name) + "</span>(" + esc(truncate(JSON.stringify(b.args || {}), 140)) + ")" +
+      "<details class='args'><summary>arguments</summary><pre>" + esc(JSON.stringify(b.args, null, 2)) + "</pre></details></div>");
+    else if (b.type === "toolResult") {
+      const content = String(b.content || "");
+      blocks.push('<div class="card' + (b.isError ? " err" : "") + '">' +
+        '<div class="who">' + (b.isError ? "tool error" : "tool result") + "</div>" +
+        "<pre class='block' style='margin-top:6px'>" + esc(truncate(content, 1400)) + "</pre>" +
+        (content.length > 1400 ? "<details class='args'><summary>full output (" + content.length + " chars)</summary><pre>" + esc(content) + "</pre></details>" : "") +
+        "</div>");
+    }
+  }
+  if (!blocks.length) return "";
+  const role = msg.role;
+  const injected = msg.source && msg.source !== "user" && msg.source !== "model" ? " · injected by " + msg.source : "";
+  return '<div class="tl ' + esc(role) + '"><div class="who">' + esc(role) + injected + " · " + fmtTime(msg.ts || e.ts) + "</div>" +
+    '<div class="card">' + blocks.join("") + "</div></div>";
+}
+
+async function renderMemory() {
+  setTabs("memory");
+  const d = await api("/api/lessons");
+  const m = d.stats;
+  let html = "<h1>Memory</h1><div class='dim'>Confidence-scored lessons from previous sessions. High-confidence rules steer the agent; doubt retires them.</div>";
+  html += '<div class="stat-grid" style="margin-top:16px">' +
+    '<div class="stat"><div class="n">' + m.active + "</div><div class='l'>active</div></div>" +
+    '<div class="stat"><div class="n">' + m.retired + "</div><div class='l'>retired</div></div>" +
+    '<div class="stat"><div class="n">' + m.avgConfidence.toFixed(2) + "</div><div class='l'>avg confidence</div></div>" +
+    '<div class="stat"><div class="n" style="font-size:15px;padding-top:6px">' +
+      Object.entries(m.byKind).filter(([, v]) => v > 0).map(([k, v]) => v + " " + k).join(" · ") + "</div><div class='l'>by kind</div></div>" +
+    "</div>";
+  html += "<h2>Active</h2>";
+  html += d.active.length ? d.active.map((l) => lessonHtml(l)).join("") : '<div class="empty">no active lessons</div>';
+  if (d.retired.length) {
+    html += "<h2>Retired <span class='faint' style='text-transform:none'>— contradicted or forgotten, kept for the record</span></h2>";
+    html += d.retired.map((l) => lessonHtml(l, true)).join("");
+  }
+  main().innerHTML = html;
+}
+
+function lessonHtml(l, retired) {
+  return '<div class="lesson' + (retired ? " retired" : "") + '">' +
+    '<div class="top">' + confBar(l.confidence, retired) + kindBadge(l.kind) +
+      '<span class="meta" style="margin-left:auto"><span>↑' + l.reinforced + " ↓" + l.contradicted + "</span><span>" + relTime(l.lastSeen) + "</span></span></div>" +
+    '<div class="text">' + esc(l.text) + "</div>" +
+    '<div class="meta"><span>' + esc(l.id) + "</span>" + l.tags.slice(0, 8).map((t) => "<span>" + esc(t) + "</span>").join("") + "</div>" +
+    (l.evidence && l.evidence.length ? "<details class='evidence'><summary>evidence (" + l.evidence.length + ")</summary><ul>" +
+      l.evidence.map((ev) => "<li>" + esc(ev) + "</li>").join("") + "</ul></details>" : "") +
+    "</div>";
+}
+
+async function renderSpec(file) {
+  setTabs("spec");
+  if (!ov) ov = await api("/api/overview");
+  const data = await api("/api/spec");
+  const files = data.files;
+  if (!files.length) {
+    main().innerHTML = "<h1>Spec</h1><div class='empty'>no spec yet — run <span class='mono'>memento spec init</span> to draft one</div>";
+    return;
+  }
+  const groups = [["constitution", "Constitution"], ["architecture", "Architecture"], ["feature", "Features"], ["decision", "Decisions"], ["other", "Other"]];
+  const active = file || (files.find((f) => f.kind === "constitution") || files[0]).relPath;
+  let nav = '<div class="spec-nav">';
+  for (const [kind, label] of groups) {
+    const fs_ = files.filter((f) => f.kind === kind);
+    if (!fs_.length) continue;
+    nav += '<div class="grp">' + label + "</div>";
+    for (const f of fs_) {
+      nav += '<button class="' + (f.relPath === active ? "active" : "") + '" onclick="location.hash=\'#/spec/' + encodeURIComponent(f.relPath) + '\'">' +
+        esc(f.relPath.slice(f.relPath.lastIndexOf("/") + 1).replace(/\.md$/, "")) + "</button>";
+    }
+  }
+  nav += "</div>";
+  const doc = files.find((f) => f.relPath === active) || files[0];
+  main().innerHTML = "<h1>Spec</h1><div class='dim'>" + files.length + " file(s) · the living specification the agent gates itself against</div>" +
+    '<div class="spec-grid" style="margin-top:16px">' + nav + '<div class="md">' + mdToHtml(doc.content) + "</div></div>";
+}
+
+/* --------------------------------------------------------------- routing */
+async function route() {
+  const hash = location.hash.replace(/^#\/?/, "");
+  const parts = hash.split("/").map(decodeURIComponent);
+  try {
+    if (parts[0] === "sessions" && parts[1]) await renderSessionDetail(parts[1]);
+    else if (parts[0] === "sessions") await renderSessions();
+    else if (parts[0] === "memory") await renderMemory();
+    else if (parts[0] === "spec") await renderSpec(parts.slice(1).join("/") || null);
+    else await renderOverview();
+  } catch (err) {
+    main().innerHTML = '<div class="card err" style="margin-top:20px"><div class="who">error</div>' + esc(err.message || String(err)) + "</div>";
+  }
+}
+document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => { location.hash = "#/" + b.dataset.view; }));
+window.addEventListener("hashchange", route);
+
+(async function boot() {
+  try {
+    const o = await api("/api/overview");
+    ov = o;
+    $("#ver").textContent = "v" + o.version;
+    $("#ws").textContent = o.root;
+  } catch (err) {
+    main().innerHTML = '<div class="card err" style="margin-top:20px">API unreachable: ' + esc(err.message) + "</div>";
+    return;
+  }
+  route();
+})();
+</script>
+</body>
+</html>

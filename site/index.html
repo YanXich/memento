@@ -1,0 +1,342 @@
+<!doctype html>
+<!--
+  memento landing page — zero dependencies, no framework, no CDN.
+  Same design language as the workbench UI (src/web/ui.html):
+  fresh violet + water, deep ink background, one gradient ribbon.
+  Host anywhere: GitHub Pages, Vercel, or just open the file.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Memento — the coding agent that remembers</title>
+<meta name="description" content="A spec-driven coding agent for the terminal. It learns from every session — lessons with confidence scores that rise on evidence and fall on contradiction. Specs that answer back. Plugins in ten lines. MCP in both directions." />
+<style>
+  :root {
+    --bg: #0d0c15;
+    --panel: #16141f;
+    --raise: #1c1a29;
+    --line: #2a2737;
+    --line-soft: #201d2e;
+    --ink: #e9e7f2;
+    --sub: #a8a3bd;
+    --faint: #6f6a85;
+    --violet: #a78bfa;
+    --violet-deep: #7c5cf0;
+    --aqua: #6fe3d0;
+    --aqua-deep: #2fb8a4;
+    --grad: linear-gradient(120deg, var(--violet) 0%, var(--aqua) 100%);
+    --green: #7fd8a4;
+    --amber: #d9a15f;
+    --red: #e08a8a;
+    --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 520px at 80% -10%, rgba(124, 92, 240, 0.16), transparent 62%),
+      radial-gradient(900px 420px at -6% 2%, rgba(111, 227, 208, 0.09), transparent 58%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--ink);
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--violet); }
+  .grad-text {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .mono { font-family: var(--mono); }
+
+  /* ------------------------------------------------------------ top bar */
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .bar::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: var(--grad); opacity: 0.85;
+  }
+  .brand { display: flex; align-items: baseline; gap: 9px; font-weight: 700; letter-spacing: 0.2px; }
+  .brand .glyph { font-size: 18px; }
+  .brand .ver { color: var(--faint); font: 11px var(--mono); }
+  .bar nav { display: flex; gap: 24px; font-size: 14px; }
+  .bar nav a { color: var(--sub); text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+  .bar .gh { color: var(--sub); text-decoration: none; font-size: 14px; }
+  .bar .gh:hover { color: var(--ink); }
+
+  /* --------------------------------------------------------------- hero */
+  .hero {
+    max-width: 960px; margin: 0 auto; padding: 96px 24px 72px; text-align: center;
+  }
+  .hero .kicker {
+    display: inline-block; padding: 4px 14px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--aqua);
+    font: 12px var(--mono); letter-spacing: 0.4px;
+    background: color-mix(in srgb, var(--aqua) 6%, transparent);
+  }
+  .hero h1 {
+    font-size: clamp(40px, 7vw, 68px); line-height: 1.08; font-weight: 800;
+    letter-spacing: -1.5px; margin: 26px 0 18px;
+  }
+  .hero .sub {
+    font-size: clamp(17px, 2.4vw, 21px); color: var(--sub);
+    max-width: 640px; margin: 0 auto 34px;
+  }
+  .hero .sub strong { color: var(--ink); font-weight: 600; }
+  .install {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 22px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line);
+    font: 14px var(--mono); color: var(--sub); margin-bottom: 20px;
+    white-space: nowrap; overflow-x: auto; max-width: 100%;
+  }
+  .install .prompt { color: var(--violet); }
+  .install .cmd { color: var(--ink); }
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .btn {
+    display: inline-block; padding: 11px 26px; border-radius: 10px;
+    text-decoration: none; font-weight: 600; font-size: 15px;
+  }
+  .btn.primary { background: var(--grad); color: #0d0c15; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { border: 1px solid var(--line); color: var(--ink); }
+  .btn.ghost:hover { border-color: var(--violet); }
+  .stats { display: flex; gap: 34px; justify-content: center; flex-wrap: wrap; }
+  .stats .s { text-align: center; }
+  .stats .n { font: 700 22px var(--mono); }
+  .stats .l { color: var(--faint); font-size: 12.5px; }
+
+  /* ---------------------------------------------------------------- demo */
+  .demo {
+    max-width: 880px; margin: 0 auto 90px; padding: 0 24px;
+  }
+  .term {
+    background: #0f0e18; border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .term .titlebar {
+    display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in srgb, var(--panel) 60%, transparent);
+  }
+  .term .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .term .dot.r { background: #e08a8a; } .term .dot.y { background: #d9a15f; } .term .dot.g { background: #7fd8a4; }
+  .term .title { margin-left: 8px; color: var(--faint); font: 12px var(--mono); }
+  .term pre {
+    margin: 0; padding: 20px 22px 26px; overflow-x: auto;
+    font: 13.5px/1.65 var(--mono); color: var(--sub);
+  }
+  .term .c-user { color: var(--aqua); }
+  .term .c-brand { color: var(--violet); font-weight: 700; }
+  .term .c-dim { color: var(--faint); }
+  .term .c-green { color: var(--green); }
+  .term .c-amber { color: var(--amber); }
+
+  /* ------------------------------------------------------------ features */
+  section.block { max-width: 1060px; margin: 0 auto 96px; padding: 0 24px; }
+  section.block h2 {
+    text-align: center; font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.6px;
+    margin: 0 0 12px;
+  }
+  section.block .lead { text-align: center; color: var(--sub); max-width: 620px; margin: 0 auto 44px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 24px 22px; position: relative; overflow: hidden;
+  }
+  .card:hover { border-color: color-mix(in srgb, var(--violet) 45%, var(--line)); }
+  .card .icon { font-size: 22px; margin-bottom: 12px; display: block; }
+  .card h3 { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
+  .card p { margin: 0; color: var(--sub); font-size: 14.5px; }
+  .card .tag {
+    position: absolute; top: 18px; right: 18px; color: var(--faint);
+    font: 11px var(--mono);
+  }
+
+  /* ------------------------------------------------------- confidence arc */
+  .arc { max-width: 760px; margin: 0 auto; }
+  .arc .row {
+    display: grid; grid-template-columns: 96px 1fr 120px; gap: 14px;
+    align-items: center; padding: 13px 0; border-bottom: 1px solid var(--line-soft);
+    font-size: 14.5px;
+  }
+  .arc .row:last-child { border-bottom: 0; }
+  .arc .event { color: var(--ink); font-weight: 600; }
+  .arc .bar { position: static; padding: 0; background: none; border: 0; backdrop-filter: none; display: block; }
+  .arc .track { height: 8px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
+  .arc .fill { height: 100%; background: var(--grad); border-radius: 4px; }
+  .arc .val { color: var(--sub); font: 13px var(--mono); text-align: right; }
+  .arc .note { color: var(--faint); font-size: 12.5px; grid-column: 2; margin-top: -6px; }
+
+  /* ------------------------------------------------------------- compare */
+  .cmp { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .cmp th {
+    text-align: left; color: var(--faint); font: 11px var(--mono);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .cmp td { padding: 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .cmp td:first-child { color: var(--sub); width: 170px; }
+  .cmp .yes { color: var(--green); } .cmp .no { color: var(--faint); }
+  .cmp .us { color: var(--aqua); font-weight: 600; }
+
+  /* ----------------------------------------------------------------- cta */
+  .final {
+    max-width: 760px; margin: 0 auto 110px; padding: 0 24px; text-align: center;
+  }
+  .final h2 { font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.5px; margin: 0 0 14px; }
+  .final p { color: var(--sub); margin: 0 0 28px; }
+
+  footer {
+    border-top: 1px solid var(--line-soft); padding: 30px 24px 44px;
+    text-align: center; color: var(--faint); font-size: 13px;
+  }
+  footer .mono { color: var(--sub); }
+
+  @media (max-width: 640px) {
+    .arc .row { grid-template-columns: 1fr; gap: 4px; }
+    .arc .val { text-align: left; }
+    .cmp td:first-child { width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand"><span class="glyph grad-text">◈</span><span class="grad-text">memento</span><span class="ver">v0.1.0</span></div>
+  <nav>
+    <a href="#why">Why</a>
+    <a href="#memory">Memory</a>
+    <a href="#compare">Compare</a>
+  </nav>
+  <a class="gh" href="https://github.com/memento-agent/memento">GitHub ↗</a>
+</header>
+
+<div class="hero">
+  <span class="kicker">spec-driven · self-improving · zero lock-in</span>
+  <h1>The coding agent<br /><span class="grad-text">that remembers.</span></h1>
+  <p class="sub">
+    Every session ends with reflection — lessons with <strong>confidence scores</strong>
+    that rise on evidence and fall on contradiction. Every task starts by recalling
+    what your codebase already taught it. Your agent gets <strong>measurably better
+    at your code</strong>, session after session.
+  </p>
+  <div class="install"><span class="prompt">$ </span><span class="cmd">npm install -g memento-agent</span></div>
+  <div class="cta-row">
+    <a class="btn primary" href="https://github.com/memento-agent/memento">Get started</a>
+    <a class="btn ghost" href="https://github.com/memento-agent/memento/blob/main/README.zh-CN.md">中文文档</a>
+  </div>
+  <div class="stats">
+    <div class="s"><div class="n grad-text">4</div><div class="l">runtime deps</div></div>
+    <div class="s"><div class="n grad-text">104</div><div class="l">tests passing</div></div>
+    <div class="s"><div class="n grad-text">0</div><div class="l">databases</div></div>
+    <div class="s"><div class="n grad-text">±0.30</div><div class="l">disproof &gt; proof</div></div>
+  </div>
+</div>
+
+<div class="demo">
+  <div class="term">
+    <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="title">memento — second run on the same codebase</span></div>
+<pre><span class="c-user">$ memento run "add rate limiting to the login endpoint"</span>
+
+<span class="c-brand">◈ memento</span> <span class="c-dim">v0.1.0 · deepseek/deepseek-chat · ~/work/api</span>
+<span class="c-dim">▸ recalled 2 lesson(s) from memory</span>
+<span class="c-dim">  + [constraint] Login routes chain through middleware/index.ts</span>
+<span class="c-dim">  + [pattern] Rate limits live in src/middleware/, not in handlers</span>
+<span class="c-dim">▸ indexing repository</span>
+<span class="c-dim">▸ building</span>
+
+<span class="c-brand">⏺ read(src/auth/login.ts)</span>  <span class="c-brand">⏺ read(src/middleware/index.ts)</span>
+<span class="c-dim">── turn 2 ──</span>
+<span class="c-brand">⏺ write(src/middleware/rate-limit.ts)</span>  <span class="c-brand">⏺ edit(src/auth/login.ts)</span>
+<span class="c-brand">⏺ bash(npm test)</span>
+<span class="c-green">  120 passed</span>
+
+<span class="c-dim">▸ reflecting on the session (self-improvement pass)</span>
+<span class="c-green">  +1 new lesson</span> <span class="c-dim">· [pattern] Rate-limit middleware composes cleanly with auth</span>
+<span class="c-amber">suggested commit</span> <span class="c-user">feat: rate-limit the login endpoint</span>
+<span class="c-dim">  (memento never commits for you — paste this into git commit -m)</span>
+
+<span class="c-brand">◈ session s_h8x2kd91mf</span> <span class="c-green">· done</span> <span class="c-dim">· 3 turn(s) · 8.2k in / 1.1k out</span></pre>
+  </div>
+</div>
+
+<section class="block" id="why">
+  <h2>Built around <span class="grad-text">four answers</span></h2>
+  <p class="lead">Most agents are brilliant and amnesiac. Memento closes the loop — between what happened, what it believes, and what it does next.</p>
+  <div class="grid4">
+    <div class="card"><span class="icon">🧠</span><span class="tag">memory</span>
+      <h3>Memory with a spine</h3>
+      <p>Lessons with real confidence dynamics: <span class="mono">0.35</span> start, <span class="mono">+0.15</span> on evidence, <span class="mono">−0.30</span> on contradiction, retired below <span class="mono">0.12</span>. Wrong memories die fast — that's the design.</p>
+    </div>
+    <div class="card"><span class="icon">📐</span><span class="tag">spec</span>
+      <h3>A spec that answers back</h3>
+      <p>Markdown specs with <em>deterministic</em> checkers — paths must exist, scripts must exist, TODOs surface. Consulted on the way in, verified on the way out. No LLM in the checking loop.</p>
+    </div>
+    <div class="card"><span class="icon">🔌</span><span class="tag">plugins</span>
+      <h3>Plugins in ten lines</h3>
+      <p>Drop a <span class="mono">.ts</span> file into <span class="mono">.memento/plugins/</span>. No build step, no manifest. Every registration returns a disposer — plugins are guests, not residents.</p>
+    </div>
+    <div class="card"><span class="icon">🌐</span><span class="tag">ecosystem</span>
+      <h3>Ecosystem native</h3>
+      <p>MCP in both directions: <span class="mono">serve-mcp</span> shares your memory with Claude Desktop and Cursor; declared MCP servers bridge in as tools. Git status, diff-aware commit hints, undo snapshots.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="memory">
+  <h2>The confidence arc</h2>
+  <p class="lead">Disproof weighs more than proof. A fresh lesson dies on its first contradiction; an earned one survives one conflict, dies on the second.</p>
+  <div class="arc">
+    <div class="row"><div class="event">new lesson</div><div class="bar"><div class="track"><div class="fill" style="width:35%"></div></div></div><div class="val">0.35</div><div class="note">unproven until reality confirms it</div></div>
+    <div class="row"><div class="event">reinforced</div><div class="bar"><div class="track"><div class="fill" style="width:50%"></div></div></div><div class="val">+0.15</div><div class="note">seen again, confirmed — repetition is evidence</div></div>
+    <div class="row"><div class="event">contradicted</div><div class="bar"><div class="track"><div class="fill" style="width:20%"></div></div></div><div class="val">−0.30</div><div class="note">falsification outranks confirmation</div></div>
+    <div class="row"><div class="event">retired</div><div class="bar"><div class="track"><div class="fill" style="width:5%; background: var(--faint)"></div></div></div><div class="val">&lt; 0.12</div><div class="note">out of the recall pool — but kept in the audit log, forever</div></div>
+  </div>
+</section>
+
+<section class="block" id="compare">
+  <h2>Honest comparison</h2>
+  <p class="lead">Memento isn't trying to be the biggest agent. It's trying to be the one that <strong>improves the most on your code</strong>.</p>
+  <table class="cmp">
+    <thead><tr><th></th><th>Memento</th><th>aider</th><th>Cline</th><th>goose</th></tr></thead>
+    <tbody>
+      <tr><td>Learns across sessions</td><td class="us">confidence-weighted lessons</td><td class="yes">repo map / conventions</td><td class="no">per-session context</td><td class="yes">extensions</td></tr>
+      <tr><td>Spec verification</td><td class="us">deterministic, no LLM</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td>Runtime dependencies</td><td class="us">4</td><td class="no">many (Python)</td><td class="no">many (VS Code)</td><td class="no">many (Rust)</td></tr>
+      <tr><td>Runs in</td><td class="us">any terminal</td><td class="yes">any terminal</td><td class="no">VS Code only</td><td class="yes">any terminal</td></tr>
+      <tr><td>MCP direction</td><td class="us">server + client</td><td class="no">—</td><td class="yes">client</td><td class="yes">client</td></tr>
+      <tr><td>Memory is an artifact</td><td class="us">plain JSONL, diffable</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="final">
+  <h2>Your agent, <span class="grad-text">one repo at a time.</span></h2>
+  <p>Install it. Let it stub its toe once. Watch it never make the same mistake twice.</p>
+  <div class="install"><span class="prompt">$ </span><span class="cmd">npm install -g memento-agent && memento init</span></div>
+  <div class="cta-row" style="margin-top: 22px">
+    <a class="btn primary" href="https://github.com/memento-agent/memento">Star it on GitHub</a>
+    <a class="btn ghost" href="https://github.com/memento-agent/memento/blob/main/docs/COMPARISON.md">Read the full comparison</a>
+  </div>
+</div>
+
+<footer>
+  ◈ memento · <span class="mono">MIT</span> · plain files, no lock-in ·
+  <span class="mono">.memento/</span> is yours to keep<br />
+  Built with 4 runtime dependencies — and 104 tests that prove it works.
+</footer>
+
+</body>
+</html>
