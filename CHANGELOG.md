@@ -16,6 +16,22 @@ All notable changes to memento are documented here. Format follows
 - npm tarball no longer drops `examples/starter-template/.gitignore` (npm strips
   dotfiles): the template ships a `gitignore` file to rename after copy, and the
   npm package now includes `examples/` so its README links resolve.
+- Session logs now carry an exclusive writer lock (`<session>.lock`): `memento
+  resume` (and `chat --session`) refuse to append to a session a live process is
+  still writing, so two seq counters can never interleave. Locks left by crashed
+  processes are stolen after a pid-liveness check; reads never take the lock.
+- `GET /api/sessions/` (empty id) answered with the first session by accident —
+  it now 404s. Malformed percent-encoding in a session id answers 400 instead of
+  500. The workbench page now sends `X-Frame-Options: DENY`, `nosniff` and
+  `Referrer-Policy: no-referrer`.
+- One-shot completions (reflection, spec generation) now retry transient
+  failures (429/5xx/mid-stream drops) once with a short backoff — previously a
+  blipped gateway silently cost the session its lesson. The agent loop's retry
+  now backs off 700ms instead of re-hitting a warm 429 instantly.
+- The repo map's file walk no longer stops at 2,000 entries before filtering:
+  large repos full of assets/docs can no longer starve source files out of the
+  map. Source reads stay bounded (3× the selection cap) so monster monorepos
+  remain cheap.
 
 ### Added
 
@@ -29,6 +45,11 @@ All notable changes to memento are documented here. Format follows
   `merge-bench` records real identities instead of "unknown".
 - `docs/blog/2026-09-22-memory-benchmark.md` — the launch post: cold/warm
   protocol, reproducible-by-design, and the real-model matrix being filled in.
+- `memento init` gained a guided wizard (automatic in a terminal, `--no-interactive`
+  to opt out): pick provider → model → auto-approve from menus that show which
+  API keys are already in your environment. `memento doctor --fix` repairs the
+  mechanically fixable problems (missing provider/config) in place and reports
+  what remains manual.
 - Leaderboard carries a second deterministic run (starter-template greet family,
   from a real `bench --dry` execution).
 

@@ -11,6 +11,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23a78bfa'/%3E%3Cstop offset='1' stop-color='%236fe3d0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='11.5' fill='none' stroke='url(%23g)' stroke-width='3.4' stroke-linecap='round' stroke-dasharray='57 15.3' transform='rotate(-90 16 16)'/%3E%3Ccircle cx='16' cy='16' r='4.6' fill='url(%23g)'/%3E%3C/svg%3E" />
 <title>memento — workbench</title>
 <style>
   :root {
@@ -40,6 +41,11 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+  button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; border-radius: 6px; }
   body {
     background:
       radial-gradient(900px 420px at 82% -12%, rgba(124, 92, 240, 0.14), transparent 62%),
@@ -69,10 +75,10 @@
     background: var(--grad); opacity: 0.85;
   }
   .brand { display: flex; align-items: baseline; gap: 8px; font-weight: 650; letter-spacing: 0.2px; }
-  .brand .glyph {
+  .logo-mark { width: 19px; height: 19px; align-self: center; flex: none; }
+  .brand .grad {
     background: var(--grad);
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    font-size: 16px;
   }
   .brand .ver { color: var(--faint); font: 11px var(--mono); }
   .ws-path { color: var(--faint); font: 12px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55vw; }
@@ -83,7 +89,7 @@
     border-bottom: 2px solid transparent; margin-bottom: -1px;
   }
   nav.tabs button:hover { color: var(--ink); }
-  nav.tabs button.active { color: var(--ink); border-image: var(--grad) 1; border-bottom: 2px solid var(--violet); }
+  nav.tabs button.active { color: var(--ink); border-image: var(--grad) 1; }
 
   main { max-width: 1080px; margin: 0 auto; padding: 26px 22px 80px; }
   h1 { font-size: 19px; font-weight: 650; margin: 0 0 4px; }
@@ -94,7 +100,8 @@
 
   /* -------------------------------------------------------------- overview */
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 15px 16px 13px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 15px 16px 13px; transition: transform 0.16s ease, border-color 0.16s ease; }
+  .stat:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--violet) 42%, var(--line)); }
   .stat .n { font-size: 26px; font-weight: 630; font-family: var(--mono); letter-spacing: -0.5px; }
   .stat .n small { font-size: 13px; color: var(--faint); font-weight: 400; }
   .stat .l { color: var(--sub); font-size: 12.5px; margin-top: 3px; }
@@ -131,7 +138,10 @@
   .session-head { margin: 14px 0 6px; }
   .session-head .task { font-size: 17px; font-weight: 620; margin: 6px 0; }
   .timeline { margin-top: 18px; border-left: 1px solid var(--line); padding-left: 20px; display: flex; flex-direction: column; gap: 14px; }
-  .tl { position: relative; }
+  .tl { position: relative; animation: rise 0.28s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  .tl:nth-child(2) { animation-delay: 0.04s; } .tl:nth-child(3) { animation-delay: 0.08s; } .tl:nth-child(4) { animation-delay: 0.12s; } .tl:nth-child(5) { animation-delay: 0.16s; }
+  @media (prefers-reduced-motion: reduce) { .tl { animation: none; } }
   .tl::before {
     content: ""; position: absolute; left: -25px; top: 7px; width: 9px; height: 9px;
     border-radius: 50%; background: var(--bg); border: 2px solid var(--faint);
@@ -154,6 +164,31 @@
   }
   .note-line { color: var(--faint); font-style: italic; font-size: 12.5px; }
   .endbar { display: flex; gap: 10px; align-items: center; color: var(--sub); font-size: 12.5px; }
+
+  /* ---------------------------------------------------- first-run onboarding */
+  .onboard { max-width: 640px; margin: 18px auto 0; }
+  .onboard-hero { text-align: center; padding: 34px 20px 26px; }
+  .logo-big { width: 64px; height: 64px; filter: drop-shadow(0 0 24px rgba(124, 92, 240, 0.45)); animation: breathe 3.6s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @media (prefers-reduced-motion: reduce) { .logo-big { animation: none; } }
+  .onboard-hero h1 { font-size: 26px; letter-spacing: -0.4px; margin: 18px 0 8px; }
+  .onboard-hero p { color: var(--sub); margin: 0 auto; max-width: 460px; }
+  .steps { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .step { display: flex; gap: 14px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .step:hover { border-color: color-mix(in srgb, var(--violet) 45%, var(--line)); }
+  .step .k {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--grad); color: #0d0c15; font: 700 14px var(--mono);
+  }
+  .step .body { flex: 1; min-width: 0; }
+  .step .t { font-weight: 650; font-size: 14px; }
+  .step .d { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+  .step .cmd { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+  .step .cmd .copy { color: var(--violet); font: 11px var(--sans); font-weight: 600; }
+  .step .cmd .copy:hover { color: var(--aqua); }
+  @media (max-width: 640px) { .step { flex-wrap: wrap; } .step .cmd { width: 100%; padding-left: 44px; } }
+  .onboard-note { color: var(--faint); text-align: center; font-size: 12.5px; margin-top: 18px; }
 
   /* ---------------------------------------------------------------- memory */
   .lesson { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
@@ -245,7 +280,10 @@
 </head>
 <body>
 <header class="bar">
-  <div class="brand"><span class="glyph">◈</span>memento <span class="ver" id="ver"></span></div>
+  <div class="brand">
+    <svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6fe3d0"/></linearGradient></defs><circle cx="16" cy="16" r="11.5" fill="none" stroke="url(#logo-g)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="57 15.3" transform="rotate(-90 16 16)"/><circle cx="16" cy="16" r="4.6" fill="url(#logo-g)"/></svg>
+    <span class="grad">memento</span> <span class="ver" id="ver"></span>
+  </div>
   <div class="ws-path mono" id="ws"></div>
 </header>
 <nav class="tabs" id="tabs">
@@ -256,7 +294,7 @@
   <button data-view="plugins">Plugins</button>
 </nav>
 <main id="main"><div class="empty">loading…</div></main>
-<footer>memento workbench · read-only · everything below lives in <span class="mono">.memento/</span></footer>
+<footer>◈ memento · the coding agent that remembers · read-only workbench · everything below lives in <span class="mono">.memento/</span></footer>
 
 <script>
 "use strict";
@@ -329,9 +367,16 @@ function evolHtml(h) {
   return rows.join("");
 }
 
-/** Copy-to-clipboard helper for the resume hint. */
-function copyCmd(text) {
-  if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+/** Copy-to-clipboard helper with inline feedback on the triggering button. */
+function copyCmd(text, btn) {
+  if (!navigator.clipboard) return;
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const t = btn.textContent;
+      btn.textContent = "copied ✓";
+      setTimeout(() => (btn.textContent = t), 1400);
+    }
+  }).catch(() => {});
 }
 
 /* --------------------------------------------------- mini markdown render */
@@ -380,10 +425,39 @@ let ov = null; // overview cache
 const main = () => $("#main");
 const setTabs = (view) => document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
 
+/* ---------------------------------------------------- first-run onboarding */
+/** Welcome hero shown before the first session — a map of the first three commands. */
+function onboardHtml(o) {
+  const step = (n, t, d, cmd) =>
+    '<div class="step"><div class="k">' + n + '</div>' +
+    '<div class="body"><div class="t">' + t + '</div><div class="d">' + d + "</div></div>" +
+    '<div class="cmd"><span class="mono">$ ' + esc(cmd) + '</span><button class="copy" onclick="copyCmd(\'' + esc(cmd) + '\', this)">copy</button></div></div>';
+  return (
+    '<div class="onboard">' +
+    '<div class="onboard-hero">' +
+    '<svg class="logo-big" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="logo-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6fe3d0"/></linearGradient></defs><circle cx="16" cy="16" r="11.5" fill="none" stroke="url(#logo-bg)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="57 15.3" transform="rotate(-90 16 16)"/><circle cx="16" cy="16" r="4.6" fill="url(#logo-bg)"/></svg>' +
+    "<h1>Welcome to memento</h1>" +
+    '<p>The coding agent that remembers. This workbench mirrors everything it learns about <span class="mono">' + esc(o.root) + "</span>.</p>" +
+    "</div>" +
+    "<h2>First run</h2>" +
+    '<div class="steps">' +
+    step(1, "Scaffold the workspace", "config + provider setup, two keystrokes", "memento init") +
+    step(2, "Draft the living spec", "scans the repo, writes constitution + architecture", "memento spec init") +
+    step(3, "Run your first task", "recall → build → verify → reflect → commit hint", 'memento run "your first task"') +
+    "</div>" +
+    '<div class="onboard-note">Come back after the first session — this page turns into the memory of the repo: sessions, lessons, and the confidence arc that proves it learned.</div>' +
+    "</div>"
+  );
+}
+
 async function renderOverview() {
   setTabs("overview");
   ov = ov || (await api("/api/overview"));
   const m = ov.memory, s = ov.spec;
+  if (ov.sessions.total === 0 && m.active + m.retired === 0 && s.files === 0) {
+    main().innerHTML = onboardHtml(ov);
+    return;
+  }
   const pTotal = (ov.plugins ? ov.plugins.project + ov.plugins.global : 0);
   main().innerHTML =
     '<h1>Workbench</h1><div class="dim">Everything memento has learned about <span class="mono">' + esc(ov.root) + "</span></div>" +
@@ -448,7 +522,7 @@ async function renderSessionDetail(id) {
     '<div class="meta"><span>' + fmtTime(h.startedAt) + "</span><span>" + esc(h.provider + "/" + h.model) + "</span><span>" + esc(h.cwd) + "</span></div></div>");
   const resumeCmd = "memento resume " + h.sessionId;
   parts.push('<div class="resume-hint"><span>' + (d.status === "done" ? "done — pick it back up any time →" : "interrupted? continue the same session →") +
-    '</span><span class="cmd">$ ' + esc(resumeCmd) + '</span><button class="copy" onclick="copyCmd(\'' + esc(resumeCmd) + '\')">copy</button></div>');
+    '</span><span class="cmd">$ ' + esc(resumeCmd) + '</span><button class="copy" onclick="copyCmd(\'' + esc(resumeCmd) + '\', this)">copy</button></div>');
   parts.push('<div class="timeline">');
   for (const e of d.entries) parts.push(entryHtml(e));
   parts.push("</div>");

@@ -406,8 +406,9 @@ program
   .command("doctor")
   .description("diagnose runtime, config, providers, spec, memory, plugins")
   .option(...cwdOption)
+  .option("--fix", "repair the mechanically fixable problems (missing provider/config)")
   .action(async (opts) => {
-    process.exitCode = await doctorCmd(rootOf(opts));
+    process.exitCode = await doctorCmd(rootOf(opts), { fix: Boolean(opts.fix) });
   });
 
 program
@@ -416,8 +417,12 @@ program
   .option(...cwdOption)
   .option("-p, --provider <id>", "provider for the config stub: deepseek | openai | anthropic | ollama | moonshot")
   .option("--force", "rewrite .memento/config.json")
-  .action((opts) => {
-    process.exitCode = initCmd(rootOf(opts), Boolean(opts.force), opts.provider);
+  .option("-i, --interactive", "guided prompt: provider → model → auto-approve (default in a terminal)")
+  .option("--no-interactive", "skip the guided prompt and use defaults")
+  .action(async (opts) => {
+    const interactive =
+      opts.interactive === true || (opts.interactive !== false && !opts.provider && Boolean(process.stdin.isTTY && process.stdout.isTTY));
+    process.exitCode = await initCmd(rootOf(opts), Boolean(opts.force), opts.provider, { interactive });
   });
 
 program.parseAsync(process.argv).catch((err: unknown) => {
