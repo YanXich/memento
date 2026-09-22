@@ -13,7 +13,7 @@ import path from "node:path";
 import fs from "node:fs";
 import pc from "picocolors";
 import type { Workspace } from "../workspace.ts";
-import { attachMcpServers, attachPlugins, createWorkspace, resolveLlm } from "../workspace.ts";
+import { attachMcpServers, attachPlugins, createWorkspace, llmReadiness, resolveLlm } from "../workspace.ts";
 import { SessionRenderer, createApprover } from "../ui.ts";
 import { SessionLog } from "../../kernel/session.ts";
 import type { LoopHooks } from "../../kernel/loop.ts";
@@ -64,6 +64,12 @@ export async function runTask(opts: RunOptions): Promise<number> {
   const llm = resolveLlm(ws, opts.provider, opts.model);
   if ("error" in llm) {
     process.stderr.write(pc.red(`\n${llm.error}\n`));
+    return 2;
+  }
+  // Fail fast on missing credentials — a doomed network call teaches nothing.
+  const readiness = llmReadiness(ws, llm.provider.id);
+  if (!readiness.ok) {
+    process.stderr.write(pc.red(`\n${readiness.detail} — set it, or switch provider. Run \`memento doctor\` for a full check.\n`));
     return 2;
   }
   const { provider, model, apiKey } = llm;

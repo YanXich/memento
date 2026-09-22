@@ -45,6 +45,20 @@ export function pluginDirs(cwd: string, opts: Partial<LoadPluginsOptions> = {}):
   return dirs;
 }
 
+/**
+ * True when a plugins directory contains at least one loadable plugin file
+ * (.ts/.mjs/.js, excluding .d.ts). An empty scaffolded directory is not
+ * "plugins found" — it must not trigger trust warnings.
+ */
+export function hasPluginFiles(dir: string): boolean {
+  try {
+    if (!fs.existsSync(dir)) return false;
+    return fs.readdirSync(dir).some((f) => /\.(ts|mjs|js)$/.test(f) && !f.endsWith(".d.ts"));
+  } catch {
+    return false;
+  }
+}
+
 export async function loadPlugins(
   host: PluginHost,
   opts: LoadPluginsOptions,

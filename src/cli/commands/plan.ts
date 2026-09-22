@@ -9,7 +9,7 @@
  * looked at a map. Non-interactive shells default to "no".
  */
 import pc from "picocolors";
-import { createWorkspace, resolveLlm } from "../workspace.ts";
+import { createWorkspace, llmReadiness, resolveLlm } from "../workspace.ts";
 import { createApprover } from "../ui.ts";
 import { recallSpec } from "../../spec/recall.ts";
 import { formatLessons, recallLessons } from "../../memory/recall.ts";
@@ -33,6 +33,11 @@ export async function planTask(opts: PlanOptions): Promise<number> {
   const llm = resolveLlm(ws, opts.provider, opts.model);
   if ("error" in llm) {
     process.stderr.write(pc.red(`\n${llm.error}\n`));
+    return 2;
+  }
+  const readiness = llmReadiness(ws, llm.provider.id);
+  if (!readiness.ok) {
+    process.stderr.write(pc.red(`\n${readiness.detail} — set it, or switch provider. Run \`memento doctor\` for a full check.\n`));
     return 2;
   }
   const { provider, model, apiKey } = llm;

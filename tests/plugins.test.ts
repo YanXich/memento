@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadPlugins, unloadAll, dispatchPluginEvent } from "../src/plugins/loader.ts";
+import { hasPluginFiles, loadPlugins, unloadAll, dispatchPluginEvent } from "../src/plugins/loader.ts";
 import type { PluginHost } from "../src/plugins/loader.ts";
 import { ToolRegistry } from "../src/tools/types.ts";
 import { z } from "zod";
@@ -34,6 +34,16 @@ function makeHost(): PluginHost & { tools: ToolRegistry } {
 }
 
 describe("plugin loader", () => {
+  it("treats an empty scaffolded plugins dir as 'no plugins' (no trust warning)", () => {
+    // `memento init` scaffolds .memento/plugins/ — it must stay quiet.
+    expect(hasPluginFiles(path.join(dir, ".memento/plugins"))).toBe(false);
+    expect(hasPluginFiles(path.join(dir, ".memento/does-not-exist"))).toBe(false);
+    fs.writeFileSync(path.join(dir, ".memento/plugins/readme.txt"), "not a plugin");
+    expect(hasPluginFiles(path.join(dir, ".memento/plugins"))).toBe(false);
+    fs.writeFileSync(path.join(dir, ".memento/plugins/real.ts"), "export default {};");
+    expect(hasPluginFiles(path.join(dir, ".memento/plugins"))).toBe(true);
+  });
+
   it("loads a TS plugin, registers its tool, and reverses registration on unload", async () => {
     fs.writeFileSync(
       path.join(dir, ".memento/plugins/hello.ts"),

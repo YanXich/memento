@@ -5,7 +5,6 @@
  * model, run. Keeping assembly here means the library entry point
  * (`src/index.ts`) and the CLI share exactly the same object graph.
  */
-import fs from "node:fs";
 import path from "node:path";
 import type { MementoConfig } from "../config.ts";
 import { apiKeyEnvFor, loadConfig, projectConfigPath, resolveApiKey, userConfigPath } from "../config.ts";
@@ -19,7 +18,7 @@ import { ToolRegistry } from "../tools/types.ts";
 import { registerBuiltins } from "../tools/builtin/index.ts";
 import { EventBus } from "../kernel/events.ts";
 import type { LoadedPlugin, PluginHost } from "../plugins/loader.ts";
-import { loadPlugins } from "../plugins/loader.ts";
+import { hasPluginFiles, loadPlugins } from "../plugins/loader.ts";
 import { jsonSchemaToZod } from "../tools/schema.ts";
 import type { McpClient, McpServerConfig } from "../mcp/client.ts";
 import { readJsonIfExists } from "../util/paths.ts";
@@ -149,7 +148,9 @@ export async function attachPlugins(ws: Workspace): Promise<LoadedPlugin[]> {
   // load after an explicit `trustProjectPlugins: true` in config.
   const trust = ws.config.trustProjectPlugins === true;
   const projectDir = path.join(ws.root, ".memento", "plugins");
-  if (fs.existsSync(projectDir)) {
+  // Only warn when real plugin files exist — a fresh `memento init` scaffolds
+  // an empty directory that must stay quiet until the user drops a plugin in.
+  if (hasPluginFiles(projectDir)) {
     ws.pluginHost.log(
       "memento",
       trust
