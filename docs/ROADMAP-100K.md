@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **193/193 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场 + 审计轮 2：跨进程锁/ReDoS 防护/流解析修复/spec gate 白名单 + 产品轮 1：memento new 脚手架）· 构建成功。
+**验证状态**：typecheck 干净 · **203/203 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场 + 审计轮 2：跨进程锁/ReDoS 防护/流解析修复/spec gate 白名单 + 产品轮 1/2：memento new 脚手架 + memento review CI 审查）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -112,6 +112,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 可靠性加固批次：会话写入者锁（pid 存活检查 + 陈旧锁窃取，防双进程交错追加）、web 路径安全（空 id 404 / 畸形编码 400 / 安全响应头）、repo map 防饿死（遍历上限提升 + 源码读取预算）、loop + 一次性补全重试带 700ms 退避（429/5xx/流中断）
 - ✅ 审计轮 2（hardening，+20 回归测试）：grep ReDoS 防护 + find_loose 跨行匹配修复 + read 二进制检测 + .memento/.demo 自读防护 + 秘密文件变体覆盖 + subagent 干净失败；lesson store 跨进程文件锁（compact rename 窗口丢失修复 + reinforce/contradict lost update 修复，与会话写入者共享锁）；OpenAI 兼容网关工具调用 name 分片/晚到 id/无参调用流解析修复（新 toolcall_name_delta 事件）；spec delta target 白名单（防诱导批准改任意文件）
 - ✅ 产品轮 1（增长）：`memento new <dir>` 内置模板脚手架（替代外部 memento-starter 仓库——npm 包内嵌模板、离线可用、自动恢复 .gitignore/盖项目名/git init，`--force`/`--no-git`/`--template`）；README 嵌入品牌动画终端 demo（docs/demo.svg，纯 CSS 无 GIF 资产）
+- ✅ 产品轮 2（CI 基础设施）：`memento review`——把项目记忆变成 PR 审查员（工作区/--base diff + 召回 lessons/spec 进审查 prompt → 结构化 findings，--json/--dry/容错解析）；仓库自带 GitHub Actions workflow（.github/workflows/memento-review.yml）复制即用：每 PR 一条咨询性审查评论，永不阻塞合并——“memento only remembers; humans decide”
 - ✅ workbench 插件页（Plugins tab + /api/plugins）：静态盘点已装插件（名称/来源/rev/安装时间/入口，绝不执行插件代码）+ 信任横幅（trustProjectPlugins 未开启时诚实提示“未加载”）+ overview 插件统计卡；共享 scanPluginDir（loader 与 CLI 单一事实源）
 - ✅ README 重构（双语）：四答案定位（记忆/spec/插件/生态原生）+ 新输出示例 + 完整 CLI 表 + 安全模型（含 MCP 信任）
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板

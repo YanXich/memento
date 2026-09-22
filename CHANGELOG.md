@@ -89,6 +89,14 @@ All notable changes to memento are documented here. Format follows
   own). Absolute paths work, `..` is rejected.
 - README opens with an animated, brand-styled terminal demo
   (`docs/demo.svg`) — CSS-only, no GIF asset, no CDN, renders on GitHub.
+- `memento review` — one advisory LLM pass over the working diff (or
+  `--base <ref>`) with the project's recalled lessons and spec commitments
+  riding along in the reviewer prompt: structured findings
+  (`--json`, exit 1 on error-severity findings), `--dry` deterministic
+  zero-network provider, tolerant JSON parsing (markdown fences, sanitized
+  severities, raw-answer fallback). A ready-made GitHub Actions workflow
+  (`.github/workflows/memento-review.yml`) posts the findings as a PR
+  comment — advisory only, never blocks or merges.
 
 ## [0.2.0] — the agent that learns, measured
 

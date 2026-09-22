@@ -1,0 +1,88 @@
+# memento review — a PR review with the project's memory behind it.
+#
+# This workflow is the canonical way to run `memento review` in CI:
+# every pull request gets one advisory pass that recalls the repo's hard-won
+# lessons and spec commitments, then reads the PR diff against them.
+#
+# Setup (once):
+#   1. Add a secret (Settings → Secrets → Actions) with an API key, e.g.
+#      `MEMENTO_API_KEY` from https://platform.deepseek.com — any provider
+#      memento supports works (deepseek | openai | anthropic | ollama | moonshot).
+#   2. Point MEMENTO_PROVIDER / MEMENTO_MODEL at your provider, or edit the
+#      env block below to match your repo's .memento/config.json.
+#   3. Import memory if you have a team export:
+#        npx memento-agent memory import .memento-memory.json
+#      (commit the export to the repo first — the review then recalls the
+#       team's lessons, which is the whole point).
+#
+# The review never blocks: findings are printed as a job summary and posted
+# as a comment. Humans decide; memento only remembers.
+
+name: memento review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: memento-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the review reads the diff against the base
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Review the PR with project memory
+        id: review
+        env:
+          # memento reads each provider's standard env var; the secret can be
+          # shared across providers by naming it MEMENTO_API_KEY in the repo
+          # settings and mapping it here.
+          DEEPSEEK_API_KEY: ${{ secrets.MEMENTO_API_KEY }}
+          MEMENTO_PROVIDER: deepseek
+          MEMENTO_MODEL: deepseek-chat
+        run: |
+          npx --yes memento-agent review \
+            --provider "$MEMENTO_PROVIDER" \
+            --model "$MEMENTO_MODEL" \
+            --base "origin/${{ github.event.pull_request.base.ref }}" \
+            --json \
+            > review.json
+          echo "--- findings ---"
+          cat review.json
+
+      - name: Post the findings as a PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node - <<'EOF'
+          const fs = require("node:fs");
+          const review = JSON.parse(fs.readFileSync("review.json", "utf8"));
+          const lines = ["## ◈ memento review — with project memory", ""];
+          if (review.findings.length === 0) {
+            lines.push("_No findings. The lessons were quiet this time._");
+          }
+          for (const f of review.findings) {
+            const loc = f.line ? `${f.file}:${f.line}` : f.file;
+            lines.push(`- **${f.severity}** \`${loc}\` — ${f.message}${f.suggestion ? `\n  → ${f.suggestion}` : ""}`);
+          }
+          if (review.notes.length) lines.push("", ...review.notes.map((n) => `- _${n}_`));
+          lines.push("", "_Advisory only — memento never blocks or merges._");
+          const body = lines.join("\n");
+          const gh = require("node:child_process").execFileSync("gh", [
+            "pr", "comment", "${{ github.event.pull_request.number }}",
+            "--body-file", "-",
+          ], { input: body });
+          process.stdout.write(gh);
+          EOF

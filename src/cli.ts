@@ -19,6 +19,7 @@ import { serveMcp } from "./cli/commands/serve.ts";
 import { undoCmd } from "./cli/commands/undo.ts";
 import { pluginsTask } from "./cli/commands/plugins.ts";
 import { newTask } from "./cli/commands/new.ts";
+import { reviewTask } from "./cli/commands/review.ts";
 
 const program = new Command();
 
@@ -441,6 +442,26 @@ program
       ...(opts.template ? { templateDir: opts.template } : {}),
       force: Boolean(opts.force),
       git: opts.git,
+    });
+  });
+
+program
+  .command("review")
+  .description("review the working diff with the project's memory behind it — lessons + spec in, findings out")
+  .option(...cwdOption)
+  .option("-p, --provider <id>", "provider id")
+  .option("-m, --model <id>", "model id")
+  .option("--base <ref>", "review `git diff <ref>` instead of the working tree vs HEAD")
+  .option("--dry", "deterministic mock provider — zero network, for CI and demos")
+  .option("--json", "machine-readable findings; exit 1 when an error-severity finding exists")
+  .action(async (opts) => {
+    process.exitCode = await reviewTask({
+      root: rootOf(opts),
+      ...(opts.provider ? { providerId: opts.provider } : {}),
+      ...(opts.model ? { modelId: opts.model } : {}),
+      ...(opts.base ? { base: opts.base } : {}),
+      dry: Boolean(opts.dry),
+      json: Boolean(opts.json),
     });
   });
 

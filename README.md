@@ -12,7 +12,7 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-193%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-203%20passing-success.svg" />
 </p>
 
 <p align="center">
@@ -164,7 +164,7 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 193 tests
+npm run check      # typecheck + 203 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```
@@ -224,6 +224,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento undo` | roll back the last write batch (write/edit/apply_patch snapshots) |
 | `memento init` | scaffold `.memento/` |
 | `memento new <dir>` | scaffold a new project from the bundled starter template — spec + bench tasks + walkthrough (`--force`, `--no-git`, `--template <dir>`) |
+| `memento review` | review the working diff with the project's memory behind it — lessons + spec recalled into the reviewer (`--base <ref>`, `--dry`, `--json`) |
 | `memento doctor` | diagnose runtime / config / providers / spec / memory / plugins |
 | `memento spec init` | scan repo, draft constitution + architecture + feature overview (`--scan-only` for the deterministic scan alone) |
 | `memento spec verify` | run deterministic checkers against the tree (`--json`) |
@@ -240,6 +241,30 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento web` | open the read-only workbench — spec, memory, sessions, and installed plugins in a browser (`--port`, `--no-open`) |
 
 All commands accept `-C <dir>` to point at a workspace root.
+
+---
+
+## PR review in CI
+
+`memento review` turns the project's memory into a reviewer: the working diff
+(or `--base <ref>` for PRs) goes in, and the recalled **lessons** + **spec
+commitments** ride along in the reviewer prompt — so the review flags changes
+that contradict things the team has already fixed, which a generic reviewer
+cannot know. Findings come back structured (`--json`), `--dry` keeps the
+pipeline testable without a network.
+
+The repo ships a ready-made GitHub Actions workflow
+([.github/workflows/memento-review.yml](.github/workflows/memento-review.yml)):
+copy it into your project, add one API-key secret, and every PR gets an
+advisory review comment. **It never blocks or merges** — memento only
+remembers; humans decide.
+
+```yaml
+# .github/workflows/memento-review.yml (the repo ships a full copy)
+steps:
+  - uses: actions/checkout@v4
+  - run: npx --yes memento-agent review --base "origin/${{ github.base_ref }}" --json
+```
 
 ---
 
