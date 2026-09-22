@@ -48,11 +48,27 @@ export interface LessonsOptions {
   reinforce?: string;
   contradict?: string;
   evidence?: string;
+  /** Fold the append-only history back to one record per lesson. */
+  compact?: boolean;
 }
 
 export function lessonsCmd(opts: LessonsOptions): number {
   const ws = createWorkspace(opts.root);
   const store = ws.lessons;
+
+  if (opts.compact) {
+    const { before, after } = store.compact();
+    if (before === 0) {
+      process.stdout.write(pc.dim("no lessons recorded yet — nothing to compact\n"));
+      return 0;
+    }
+    process.stdout.write(
+      pc.green("✓ compacted memory") +
+        pc.dim(` — ${before} history record(s) folded to ${after} lesson(s)\n`) +
+        pc.dim("  state is unchanged; only the append-only log was rewritten.\n"),
+    );
+    return 0;
+  }
 
   if (opts.retire) {
     const updated = store.retire(opts.retire);

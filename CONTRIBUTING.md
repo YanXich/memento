@@ -11,7 +11,7 @@ built-in tool.
   SSE wire format and a real MCP server subprocess already exist in
   `tests/support/` — reuse them.
 - **`npm run check` must be green** before you push: typecheck + the full test
-  suite (105 tests as of v0.1.0).
+  suite (108 tests as of v0.1.0).
 - **Deterministic where it counts.** Spec verification, command classification,
   and undo snapshots never call a model. Keep it that way — LLMs do judgment,
   code does checking.

@@ -63,6 +63,34 @@ describe("LessonStore", () => {
     store.contradict(lesson.id, "confirmed hand-edits", "s_4"); // 0.20 - 0.30 → below floor
     expect(store.get(lesson.id)!.status).toBe("retired");
   });
+
+  it("compacts the history to one record per lesson without changing state", () => {
+    const store = LessonStore.load(dir);
+    const kept = store.add({ text: "Tests run with npm test", kind: "constraint", evidence: "e", sessionId: "s_1" });
+    store.reinforce(kept.id, "again", "s_2");
+    store.reinforce(kept.id, "and again", "s_3");
+    const retired = store.add({ text: "The API uses pagination", kind: "discovery", evidence: "e", sessionId: "s_1" });
+    store.retire(retired.id);
+    const lines = () =>
+      fs.readFileSync(path.join(dir, ".memento/memory/lessons.jsonl"), "utf8").trim().split("\n");
+    expect(lines().length).toBe(5); // upsert×4 + retire
+
+    const { before, after } = store.compact();
+    expect(before).toBe(5);
+    expect(after).toBe(2); // one record per lesson, retired kept
+    expect(lines().length).toBe(2);
+
+    // Folded state survives the rewrite exactly.
+    const reloaded = LessonStore.load(dir);
+    expect(reloaded.get(kept.id)!.confidence).toBeCloseTo(CONFIDENCE_START + 0.3);
+    expect(reloaded.get(kept.id)!.reinforced).toBe(2);
+    expect(reloaded.get(retired.id)!.status).toBe("retired");
+  });
+
+  it("compacting an empty store is a no-op", () => {
+    const store = LessonStore.load(dir);
+    expect(store.compact()).toEqual({ before: 0, after: 0 });
+  });
 });
 
 describe("recallLessons", () => {
@@ -165,5 +193,30 @@ describe("reflect", () => {
     );
     expect(outcome.error).toBeTruthy();
     expect(outcome.added).toHaveLength(0);
+  });
+
+  it("deduplicates a model that repeats the same new lesson within one batch", async () => {
+    const store = LessonStore.load(dir);
+    const provider = createMockProvider([
+      {
+        text: JSON.stringify({
+          observations: [
+            { text: "Tests in this repo run with `npm test`", kind: "constraint", evidence: "ran it", relation: "new" },
+            { text: "Tests in this repo run with `npm test`", kind: "constraint", evidence: "ran it again", relation: "new" },
+          ],
+          specSuggestions: [],
+          summary: "",
+        }),
+      },
+    ]);
+
+    const outcome = await reflect(
+      { provider, model: MOCK_MODEL },
+      { sessionId: "s_dup", task: "run tests", status: "done", messages: transcript, store },
+    );
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.added).toHaveLength(1); // second occurrence reinforces the first
+    expect(outcome.reinforced).toHaveLength(1);
+    expect(store.active()).toHaveLength(1);
   });
 });

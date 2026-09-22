@@ -12,8 +12,6 @@ import { extractTerms, termOverlap } from "../util/text.ts";
 
 export interface RecallLessonsOptions {
   max?: number;
-  /** Include lessons with zero keyword match but very high confidence. */
-  includeHighConfidence?: boolean;
 }
 
 export function recallLessons(store: LessonStore, task: string, opts: RecallLessonsOptions = {}): Lesson[] {

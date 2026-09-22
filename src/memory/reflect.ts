@@ -125,8 +125,11 @@ ${transcript}`,
       }
       continue;
     }
-    // Deduplicate near-identical new lessons before adding.
-    const duplicate = existing.find((l) => nearDuplicate(l.text, obs.text));
+    // Deduplicate near-identical new lessons before adding — against the
+    // pre-existing list AND against lessons already added in this same batch
+    // (a model can repeat itself within one reflection).
+    const seen = [...existing, ...outcome.added];
+    const duplicate = seen.find((l) => nearDuplicate(l.text, obs.text));
     if (duplicate) {
       const updated = input.store.reinforce(duplicate.id, evidence, input.sessionId);
       if (updated) outcome.reinforced.push(updated);

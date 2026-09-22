@@ -7,9 +7,12 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    name: check (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         node: ["20", "22"]
     steps:
       - uses: actions/checkout@v4
@@ -21,3 +24,20 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  smoke:
+    name: end-to-end smoke (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Real processes, real tool execution, zero network: a scripted model
+      # drives the full recall → gate → build → verify → reflect loop.
+      - run: node scripts/demo.mjs
+      # 12 parallel writers on one memory log — proves the O_APPEND contract.
+      - run: npm run stress:memory

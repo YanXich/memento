@@ -142,6 +142,35 @@ export class LessonStore {
       avgConfidence: active.length ? confSum / active.length : 0,
     };
   }
+
+  /**
+   * Fold the append-only history back to one record per lesson.
+   *
+   * Every reinforce/contradict appends a record, so the log grows with each
+   * session. Compaction rewrites it keeping only the latest record per lesson
+   * id — the folded state is identical, the file shrinks. Retired lessons are
+   * kept: retirement is a status, not a delete. Atomic via temp-file + rename,
+   * so a crash mid-write can never corrupt the store. Safe to run while other
+   * processes hold the file: each appends whole lines, and any write landing
+   * on the old inode during the swap is replayed on the next load as history
+   * that folds forward (compaction is lossy by design only for the log, never
+   * for the lessons).
+   */
+  compact(): { before: number; after: number } {
+    const records = readJsonl<LessonRecord>(this.file);
+    if (records.length === 0) return { before: 0, after: 0 };
+    const latest = new Map<string, LessonRecord>();
+    for (const record of records) {
+      if (record.lesson?.id) latest.set(record.lesson.id, record);
+    }
+    const folded = [...latest.values()];
+    const tmp = `${this.file}.tmp`;
+    fs.writeFileSync(tmp, folded.map((r) => JSON.stringify(r) + "\n").join(""), "utf8");
+    fs.renameSync(tmp, this.file);
+    // Rebuild the in-memory fold so live sessions see the compacted state.
+    this.lessons = new Map(folded.map((r) => [r.lesson.id, r.lesson]));
+    return { before: records.length, after: folded.length };
+  }
 }
 
 function cap<T>(arr: T[], max: number): T[] {

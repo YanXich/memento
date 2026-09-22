@@ -169,6 +169,7 @@ program
   .option("--contradict <id>", "lower confidence (−0.30, may retire)")
   .option("--retire <id>", "retire a lesson")
   .option("--evidence <text>", "evidence for reinforce/contradict")
+  .option("--compact", "fold the append-only history to one record per lesson")
   .action((opts) => {
     process.exitCode = lessonsCmd({
       root: rootOf(opts),
@@ -178,6 +179,7 @@ program
       ...(opts.contradict ? { contradict: opts.contradict } : {}),
       ...(opts.retire ? { retire: opts.retire } : {}),
       ...(opts.evidence ? { evidence: opts.evidence } : {}),
+      compact: Boolean(opts.compact),
     });
   });
 
