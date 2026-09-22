@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **144/144 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场）· 构建成功。
+**验证状态**：typecheck 干净 · **148/148 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -105,13 +105,13 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 官方示例插件（examples/plugins/）：todo-guard（spec checker）/ session-digest（生命周期钩子）/ now-tool（工具注册）+ 总览 README；`spec verify` 死通道修复（异步 attachPlugins，插件 checker 真正运行 + verifySpec 自动补 checker 归属）+ 回归测试
 - 验收：MCP 双通道 22 测试 + git/undo 15 测试全绿 ✅
 
-### Phase 4 — 品牌与增长（进行中：品牌化 ✅ / 落地页 ⬜）
+### Phase 4 — 品牌与增长（进行中：品牌化 ✅ / 落地页 ✅ / 发布闭环 ✅ / 传播 ⬜）
 - ✅ 前端品牌化（**清新紫蓝 + 水木元素**）：web workbench 紫蓝渐变调色板（violet #a78bfa → aqua #6fe3d0）、顶部 water line、径向光晕背景、渐变 logo/置信条；终端输出品牌化（◈ 品牌徽记 + 紫蓝工具行 + 语义色状态）；浏览器实测截图存证（_shots/）
 - ✅ workbench 插件页（Plugins tab + /api/plugins）：静态盘点已装插件（名称/来源/rev/安装时间/入口，绝不执行插件代码）+ 信任横幅（trustProjectPlugins 未开启时诚实提示“未加载”）+ overview 插件统计卡；共享 scanPluginDir（loader 与 CLI 单一事实源）
 - ✅ README 重构（双语）：四答案定位（记忆/spec/插件/生态原生）+ 新输出示例 + 完整 CLI 表 + 安全模型（含 MCP 信任）
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
 - ✅ 落地页（静态 + GitHub Pages）：hero 定位语 + 动画终端（30s demo + chat）+ 记忆基准学习曲线 SVG + CTA；OG/twitter 标签；浏览器实测截图存证
-- ✅ 发布闭环：GitHub Actions CI（双 OS × 双 Node 矩阵 typecheck+tests；build 后 CLI 启动/插件清单/全链路 demo/内存并发/bench dry 串行+并行冒烟）+ tag 触发 npm publish --provenance workflow；README 双语徽章（CI/npm）
+- ✅ 发布闭环：GitHub Actions CI（双 OS × 双 Node 矩阵 typecheck+tests；build 后 CLI 启动/插件清单/全链路 demo/内存并发/bench dry 串行+并行冒烟）+ tag 触发 npm publish --provenance workflow；README 双语徽章（CI/npm）+ starter 模板（examples/starter-template/，15 分钟上手导览，spec verify + bench --dry 端到端验证）
 - ⬜ 传播：HN/Reddit/V2EX 发帖节奏、benchmark 博客、模板仓库（memento-starter）
 - ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑
 
@@ -125,7 +125,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 
 ## 5. 验收路线图（里程碑）
 
-- **M1（已完成）**：Phase 1-3 全绿（134/134 测试）→ 待发 `v0.2.0`（"安全/生态/品牌大修"变更日志）
+- **M1（已完成）**：Phase 1-3 全绿（148/148 测试）→ `v0.2.0` tag 已打（含插件市场 + 插件页 + CI/发布闭环 + starter 模板）
 - **M2（进行中）**：落地页 + 记忆基准真实数据 → 第一篇 benchmark 博客（leaderboard 页面已就绪）
 - **M3（一个月）**：MCP 双通道文章 + 落地页 → HN 首发
 - **M4（持续）**：插件生态 + 社区运营 → 冲 10k → 冲 100k
