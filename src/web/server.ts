@@ -21,7 +21,7 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 import { loadConfig, userConfigPath, projectConfigPath } from "../config.ts";
-import { listSessions, loadSession } from "../kernel/session.ts";
+import { listSessions, loadSession, resolveSessionFile } from "../kernel/session.ts";
 import { LessonStore } from "../memory/store.ts";
 import type { Lesson } from "../memory/types.ts";
 import { scanPluginDir } from "../plugins/loader.ts";
@@ -46,6 +46,13 @@ export async function startWebServer(opts: { root: string; port?: number; homedi
   const ui = readUi();
   const server = http.createServer((req, res) => {
     void handle(req, res, root, ui, home).catch((err: unknown) => {
+      // The response may already be streaming (headers sent); writing again
+      // would throw ERR_HTTP_HEADERS_SENT and surface as an unhandled
+      // rejection. Tear the socket down instead.
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       json(res, 500, { error: err instanceof Error ? err.message : String(err) });
     });
   });
@@ -123,6 +130,8 @@ function json(res: http.ServerResponse, code: number, data: unknown): void {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
   });
   res.end(JSON.stringify(data));
 }
@@ -140,6 +149,12 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+
+// Long-running workbenches see one entry per session id (plus per id spelling
+// before normalization); without a cap the cache grows without bound. Map
+// iteration order is insertion order, so evicting the head is FIFO — simple,
+// deterministic, and plenty for a local workbench.
+const CACHE_MAX = 256;
 
 function respondJson(
   req: http.IncomingMessage,
@@ -163,6 +178,10 @@ function respondJson(
   }
   const body = JSON.stringify(build());
   cache.set(key, { stamp, body });
+  if (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   res.writeHead(200, jsonHeaders(etag));
   res.end(body);
 }
@@ -173,6 +192,8 @@ function jsonHeaders(etag: string): Record<string, string> {
     "cache-control": "no-cache",
     etag,
     "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
   };
 }
 
@@ -323,22 +344,22 @@ function sessionList(root: string): Record<string, unknown> {
 
 function sessionDetail(req: http.IncomingMessage, res: http.ServerResponse, root: string, id: string): void {
   const dir = sessionsDir(root);
-  let file: string | null = null;
-  try {
-    // Match against directory entries only — `id` never becomes a path itself,
-    // so traversal attempts (`../../…`) simply fail to match. (The empty id
-    // case is rejected by the caller before we get here.)
-    const names = fs.readdirSync(dir).filter((n) => n.endsWith(".jsonl"));
-    const match = names.find((n) => n === id || n.startsWith(id));
-    if (match) file = path.join(dir, match);
-  } catch {
-    /* no sessions dir */
+  const resolved = resolveSessionFile(dir, id);
+  if (resolved === null) return json(res, 404, { error: `session not found: ${id}` });
+  if ("ambiguous" in resolved) {
+    return json(res, 400, {
+      error: `session id prefix is ambiguous (${resolved.ambiguous.length} matches) — use a longer prefix`,
+      candidates: resolved.ambiguous.map((n) => n.replace(/\.jsonl$/, "")),
+    });
   }
-  if (!file) return json(res, 404, { error: `session not found: ${id}` });
+  const file = resolved.file;
   // A session being written changes its stamp on every append, so a stale
-  // cache can never mask live progress.
-  respondJson(req, res, `/api/sessions/${id}`, [stampFile(file)], () => {
-    const loaded = loadSession(file as string);
+  // cache can never mask live progress. The cache key is the canonical file
+  // id (not the raw path segment), so prefix and percent-encoded spellings
+  // of the same session share one entry.
+  const canonicalId = path.basename(file, ".jsonl");
+  respondJson(req, res, `/api/sessions/${canonicalId}`, [stampFile(file)], () => {
+    const loaded = loadSession(file);
     return { header: loaded.header, status: loaded.status, messages: loaded.messages.length, entries: loaded.entries };
   });
 }

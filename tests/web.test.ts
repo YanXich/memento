@@ -112,6 +112,24 @@ describe("web workbench", () => {
     expect(((await res.json()) as { error: string }).error).toContain("percent-encoding");
   });
 
+  it("rejects an ambiguous session prefix instead of picking one silently", async () => {
+    const s = await boot();
+    const entries = [
+      { seq: 1, ts: 1_700_000_000_000, kind: "header", sessionId: "s_abc", cwd: root, model: "m", provider: "p", task: "t", mementoVersion: "0.1.0" },
+      { seq: 2, ts: 1_700_000_000_001, kind: "result", status: "done", turns: 1 },
+    ];
+    for (const id of ["s_abc", "s_abd"]) {
+      const e = structuredClone(entries);
+      e[0]!.sessionId = id;
+      fs.writeFileSync(path.join(root!, ".memento", "sessions", `${id}.jsonl`), e.map((x) => JSON.stringify(x)).join("\n") + "\n");
+    }
+    const res = await fetch(`${s.url}/api/sessions/s_ab`);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; candidates: string[] };
+    expect(body.error).toContain("ambiguous");
+    expect(body.candidates.sort()).toEqual(["s_abc", "s_abd"]);
+  });
+
   it("reflects spec, memory, and sessions through the same stores as the CLI", async () => {
     const s = await boot();
 

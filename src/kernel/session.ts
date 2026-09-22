@@ -228,6 +228,29 @@ export function listSessions(sessionsDir: string): SessionSummary[] {
   return out;
 }
 
+export type SessionResolution = { file: string } | { ambiguous: string[] } | null;
+
+/**
+ * Resolve a session id or unique prefix to its log file. An exact match wins;
+ * a prefix matching exactly one file wins; several matches are ambiguous and
+ * reported as such — silently picking one could show (or resume!) the wrong
+ * audit trail; no match returns null.
+ */
+export function resolveSessionFile(sessionsDir: string, idOrPrefix: string): SessionResolution {
+  let names: string[] = [];
+  try {
+    names = fs.readdirSync(sessionsDir).filter((n) => n.endsWith(".jsonl"));
+  } catch {
+    return null;
+  }
+  const exact = names.find((n) => n === idOrPrefix || n === `${idOrPrefix}.jsonl`);
+  if (exact) return { file: path.join(sessionsDir, exact) };
+  const matches = names.filter((n) => n.startsWith(idOrPrefix)).sort();
+  if (matches.length === 1) return { file: path.join(sessionsDir, matches[0]!) };
+  if (matches.length > 1) return { ambiguous: matches };
+  return null;
+}
+
 /**
  * Light single-pass scan for list views: header + message count + the last
  * result's status/turns. Unlike `loadSession` it never reconstructs the full

@@ -38,7 +38,9 @@ export function createMockProvider(turns: MockTurn[]): MockProvider {
     requests,
     remaining: () => Math.max(0, turns.length - index),
     async *stream(req: LlmRequest): AsyncIterable<StreamEvent> {
-      requests.push(req);
+      // Snapshot at request time: a real provider serializes what it saw, and
+      // the loop mutates its context array right after the stream ends.
+      requests.push({ ...req, messages: [...req.messages] });
       const turn = turns[index];
       index += 1;
       if (!turn) {

@@ -312,6 +312,13 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       text = "[provider error] stream produced no events";
     }
 
+    // Aborting during the retry backoff leaves `stopReason` at "error" from
+    // the failed attempt; the session must record "aborted", not a phantom
+    // provider failure. Normalize after all stream attempts settle.
+    if (opts.signal?.aborted) {
+      stopReason = "aborted";
+    }
+
     // Materialize blocks: text → thinking → calls (in arrival order).
     if (text) msg.content.push({ type: "text", text });
     if (thinking) msg.content.push({ type: "thinking", text: thinking });
@@ -350,9 +357,15 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
 
   async function executeBatch(calls: ToolCallBlock[]): Promise<Message[]> {
     // Validate everything first — a bad call fails fast without touching side effects.
+    // `mutating` is decided exactly once per call: run-splitting and the
+    // approval gate below must agree, or a plugin-provided `requiresApproval`
+    // predicate could be asked twice and disagree with itself mid-batch.
     const prepared = calls.map((call) => {
       const check = opts.registry.validate(call.name, call.args);
-      return { call, check };
+      const tool = opts.registry.get(call.name);
+      const mutating =
+        Boolean(tool?.mutating) || (check.ok && tool?.requiresApproval ? tool.requiresApproval(check.args) : false);
+      return { call, check, mutating };
     });
 
     // Runs preserve the model's call order end to end: consecutive read-only
@@ -360,16 +373,10 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
     // common case), while every mutating/approval-gated call forms its own
     // run so side effects stay strictly ordered and approval prompts never
     // interleave mid-batch.
-    const isMutating = (p: (typeof prepared)[number]) => {
-      const tool = opts.registry.get(p.call.name);
-      if (tool?.mutating) return true;
-      if (p.check.ok && tool?.requiresApproval) return tool.requiresApproval(p.check.args);
-      return false;
-    };
     const runs: (typeof prepared)[number][][] = [];
     for (const p of prepared) {
       const prev = runs[runs.length - 1];
-      if (isMutating(p) || !prev || isMutating(prev[0]!)) {
+      if (p.mutating || !prev || prev[0]!.mutating) {
         runs.push([p]);
       } else {
         prev.push(p);
@@ -410,7 +417,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
         return { output: `Blocked: ${blocked}`, isError: true };
       }
 
-      if (tool.mutating || tool.requiresApproval?.(args)) {
+      if (p.mutating) {
         const approved = opts.approve ? await opts.approve(call.name, args) : false;
         if (!approved) {
           return { output: `Denied: ${call.name} requires approval. Ask the user how to proceed.`, isError: true };
@@ -445,8 +452,15 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
     const summary = await opts.hooks?.compact?.(context, keepRecent).catch(() => null);
     if (!summary) return;
 
-    const removed = context.length - keepRecent;
-    const kept = context.slice(-keepRecent);
+    let kept = context.slice(-keepRecent);
+    // A compacted boundary can strand tool results whose assistant call was
+    // summarized away — providers reject "tool" messages without a preceding
+    // assistant tool_calls message. Drop the orphaned head; the summary
+    // already covers what they described.
+    let cut = 0;
+    while (cut < kept.length && kept[cut]!.role === "tool") cut += 1;
+    if (cut > 0) kept = kept.slice(cut);
+    const removed = context.length - kept.length;
     context.length = 0;
     context.push({
       id: messageId(),

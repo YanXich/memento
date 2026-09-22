@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import pc from "picocolors";
-import { listSessions, loadSession } from "../../kernel/session.ts";
+import { listSessions, loadSession, resolveSessionFile } from "../../kernel/session.ts";
 import type { SessionEntry } from "../../kernel/session.ts";
 import { textOf, toolCallsOf } from "../../llm/types.ts";
 import { appendJsonl } from "../../util/paths.ts";
@@ -47,18 +47,21 @@ export function sessionsCmd(root: string, limit = 20): number {
 
 export function sessionShowCmd(root: string, idOrPrefix: string, full = false): number {
   const dir = sessionsDir(root);
-  let file: string | null = null;
-  try {
-    const names = fs.readdirSync(dir).filter((n) => n.endsWith(".jsonl"));
-    const match = names.find((n) => n === idOrPrefix || n.startsWith(idOrPrefix));
-    if (match) file = path.join(dir, match);
-  } catch {
-    /* no sessions dir */
-  }
-  if (!file) {
+  const resolved = resolveSessionFile(dir, idOrPrefix);
+  if (resolved === null) {
     process.stderr.write(pc.red(`session not found: ${idOrPrefix} (looked in ${dir})\n`));
     return 1;
   }
+  if ("ambiguous" in resolved) {
+    process.stderr.write(
+      pc.yellow(`"${idOrPrefix}" is ambiguous — it matches ${resolved.ambiguous.length} sessions:\n`) +
+        resolved.ambiguous.map((n) => `  ${pc.cyan(n.replace(/\.jsonl$/, ""))}`).join("\n") +
+        "\n" +
+        pc.dim("use a longer prefix or the full id\n"),
+    );
+    return 1;
+  }
+  const file = resolved.file;
 
   const loaded = loadSession(file);
   const color = STATUS_COLOR[loaded.status] ?? pc.dim;

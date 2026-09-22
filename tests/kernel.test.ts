@@ -17,7 +17,7 @@ import { EventBus } from "../src/kernel/events.ts";
 import { ToolRegistry } from "../src/tools/types.ts";
 import { registerBuiltins } from "../src/tools/builtin/index.ts";
 import { MOCK_MODEL, createMockProvider } from "./support/mock-provider.ts";
-import type { Message } from "../src/llm/types.ts";
+import type { LlmProvider, Message } from "../src/llm/types.ts";
 import { appendJsonl, readJsonl } from "../src/util/paths.ts";
 
 let dir: string;
@@ -361,6 +361,118 @@ describe("runLoop", () => {
     );
     expect(result.status).toBe("error");
     expect(provider.requests.length).toBe(1);
+    session.close();
+  });
+
+  it("records aborted (not error) when the run is cancelled during retry backoff", async () => {
+    const provider: LlmProvider = {
+      id: "abort-mock",
+      label: "Abort",
+      models: [MOCK_MODEL],
+      resolveModel: () => MOCK_MODEL,
+      async *stream() {
+        yield { type: "error", error: "429 rate limited", retryable: true };
+      },
+    };
+    const registry = new ToolRegistry();
+    const session = newSession();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 50);
+    const result = await runLoop(
+      { provider, model: MOCK_MODEL, system: "test", registry, session, bus: new EventBus(), signal: controller.signal },
+      [userMessage("start")],
+    );
+    clearTimeout(timer);
+    expect(result.status).toBe("aborted");
+    expect(loadSession(session.file).status).toBe("aborted");
+    session.close();
+  });
+
+  it("evaluates requiresApproval exactly once per call", async () => {
+    let asked = 0;
+    const provider = createMockProvider([
+      { toolCalls: [{ name: "gated", args: {} }] },
+      { text: "done" },
+    ]);
+    const registry = new ToolRegistry();
+    registry.register({
+      name: "gated",
+      description: "approval-gated probe",
+      schema: z.object({}),
+      requiresApproval: () => {
+        asked += 1;
+        return true;
+      },
+      async execute() {
+        return { output: "ran" };
+      },
+    });
+    const session = newSession();
+    const result = await runLoop(
+      { provider, model: MOCK_MODEL, system: "test", registry, session, bus: new EventBus(), approve: async () => true },
+      [userMessage("go")],
+    );
+    expect(result.status).toBe("done");
+    expect(asked).toBe(1);
+    session.close();
+  });
+
+  it("compaction drops orphaned tool results so the stream never starts with one", async () => {
+    const assistantCall = (id: string, callId: string): Message => ({
+      id,
+      role: "assistant",
+      content: [{ type: "toolCall", id: callId, name: "read", args: {}, rawArgs: "{}" }],
+      ts: Date.now(),
+    });
+    const toolResult = (id: string, callId: string): Message => ({
+      id,
+      role: "tool",
+      toolCallId: callId,
+      content: [{ type: "toolResult", toolCallId: callId, content: `result-${id}` }],
+      ts: Date.now(),
+    });
+    // Tail of 4 kept messages starts with two orphaned tool results — the
+    // compaction boundary slices right between an assistant call and its
+    // results. Providers reject a stream that opens with a "tool" message.
+    const context: Message[] = [
+      userMessage("start"),
+      assistantCall("a1", "c1"),
+      toolResult("t1", "c1"),
+      userMessage("continue"),
+      assistantCall("a2", "c2"),
+      toolResult("t2", "c2"),
+      toolResult("t3", "c2"),
+      toolResult("t4", "c2"),
+      assistantCall("a3", "c3"),
+      toolResult("t5", "c3"),
+    ];
+    const provider = createMockProvider([{ text: "done" }]);
+    const registry = new ToolRegistry();
+    const session = newSession();
+    const result = await runLoop(
+      {
+        provider,
+        model: MOCK_MODEL,
+        system: "test",
+        registry,
+        session,
+        bus: new EventBus(),
+        compactAt: 0, // force compaction on the very first turn
+        hooks: { compact: async () => "summarized everything" },
+      },
+      context,
+    );
+    expect(result.status).toBe("done");
+    // The first request the provider sees is post-compaction: summary, then
+    // the kept tail — and the tail must not open with an orphaned tool result.
+    const sent = provider.requests[0]!.messages;
+    expect(sent).toHaveLength(3);
+    expect(sent[0]!.role).toBe("user");
+    expect(sent[1]!.role).toBe("assistant");
+    expect(sent[2]!.role).toBe("tool");
+    expect((sent[2] as { toolCallId?: string }).toolCallId).toBe("c3");
+    // The compaction is part of the audit trail.
+    expect(loadSession(session.file).entries.some((e) => e.kind === "compaction")).toBe(true);
     session.close();
   });
 });

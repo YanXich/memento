@@ -12,7 +12,7 @@ import fs from "node:fs";
 import pc from "picocolors";
 import { attachMcpServers, attachPlugins, createWorkspace, llmReadiness, resolveLlm } from "../workspace.ts";
 import { SessionRenderer, createApprover } from "../ui.ts";
-import { SessionLog, loadSession } from "../../kernel/session.ts";
+import { SessionLog, loadSession, resolveSessionFile } from "../../kernel/session.ts";
 import { runLoop } from "../../kernel/loop.ts";
 import { buildLoopHooks } from "../hooks.ts";
 import { printSummary, runAftermath } from "../aftermath.ts";
@@ -46,18 +46,21 @@ export async function resumeTask(opts: ResumeOptions): Promise<number> {
 
   // Locate the session file — same id/prefix matching as `memento show`.
   const sessionsDir = path.join(ws.root, ".memento", "sessions");
-  let file: string | null = null;
-  try {
-    const names = fs.readdirSync(sessionsDir).filter((n) => n.endsWith(".jsonl"));
-    const match = names.find((n) => n === opts.session || n.startsWith(opts.session));
-    if (match) file = path.join(sessionsDir, match);
-  } catch {
-    /* no sessions dir */
-  }
-  if (!file) {
+  const resolved = resolveSessionFile(sessionsDir, opts.session);
+  if (resolved === null) {
     process.stderr.write(pc.red(`session not found: ${opts.session} (looked in ${sessionsDir})\n`));
     return 1;
   }
+  if ("ambiguous" in resolved) {
+    process.stderr.write(
+      pc.yellow(`"${opts.session}" is ambiguous — it matches ${resolved.ambiguous.length} sessions:\n`) +
+        resolved.ambiguous.map((n) => `  ${pc.cyan(n.replace(/\.jsonl$/, ""))}`).join("\n") +
+        "\n" +
+        pc.dim("resume with a longer prefix or the full id — replaying the wrong log would corrupt the audit trail\n"),
+    );
+    return 1;
+  }
+  const file = resolved.file;
 
   const loaded = loadSession(file);
   if (loaded.messages.length === 0) {
