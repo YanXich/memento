@@ -8,7 +8,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import type { Lesson, LessonKind, MemoryStats } from "./types.ts";
+import type { Lesson, LessonEvent, LessonKind, MemoryStats } from "./types.ts";
 import { appendJsonl, ensureDir, readJsonl } from "../util/paths.ts";
 import { lessonId } from "../util/ids.ts";
 import { extractTerms } from "../util/text.ts";
@@ -26,6 +26,13 @@ interface LessonRecord {
   ts: number;
   lesson: Lesson;
 }
+
+/**
+ * Records kept per lesson after compaction. Eight points is enough to redraw
+ * the confidence arc in the workbench (creation, reinforcements, a retirement)
+ * while keeping the file bounded no matter how many sessions run.
+ */
+export const COMPACT_HISTORY_KEEP = 8;
 
 export class LessonStore {
   readonly file: string;
@@ -144,12 +151,37 @@ export class LessonStore {
   }
 
   /**
-   * Fold the append-only history back to one record per lesson.
+   * Evolution arcs for every lesson, folded from the raw append-only log in a
+   * single pass. Each event carries the confidence at that point in time —
+   * this is the data behind the workbench's "the agent gets smarter" curve.
+   */
+  histories(): Map<string, LessonEvent[]> {
+    const byId = new Map<string, LessonEvent[]>();
+    for (const record of readJsonl<LessonRecord>(this.file)) {
+      const lesson = record.lesson;
+      if (!lesson?.id) continue;
+      const list = byId.get(lesson.id) ?? [];
+      list.push({
+        op: record.op,
+        ts: record.ts,
+        confidence: lesson.confidence,
+        reinforced: lesson.reinforced,
+        contradicted: lesson.contradicted,
+        status: lesson.status,
+      });
+      byId.set(lesson.id, list);
+    }
+    return byId;
+  }
+
+  /**
+   * Fold the append-only history back to a bounded trail per lesson.
    *
    * Every reinforce/contradict appends a record, so the log grows with each
-   * session. Compaction rewrites it keeping only the latest record per lesson
-   * id — the folded state is identical, the file shrinks. Retired lessons are
-   * kept: retirement is a status, not a delete. Atomic via temp-file + rename,
+   * session. Compaction keeps the most recent records per lesson id — the
+   * folded state is identical, the file shrinks, and the evolution arc stays
+   * drawable (COMPACT_HISTORY_KEEP points). Retired lessons are kept:
+   * retirement is a status, not a delete. Atomic via temp-file + rename,
    * so a crash mid-write can never corrupt the store. Safe to run while other
    * processes hold the file: each appends whole lines, and any write landing
    * on the old inode during the swap is replayed on the next load as history
@@ -159,11 +191,15 @@ export class LessonStore {
   compact(): { before: number; after: number } {
     const records = readJsonl<LessonRecord>(this.file);
     if (records.length === 0) return { before: 0, after: 0 };
-    const latest = new Map<string, LessonRecord>();
+    const byId = new Map<string, LessonRecord[]>();
     for (const record of records) {
-      if (record.lesson?.id) latest.set(record.lesson.id, record);
+      if (!record.lesson?.id) continue;
+      const list = byId.get(record.lesson.id) ?? [];
+      list.push(record);
+      if (list.length > COMPACT_HISTORY_KEEP) list.shift();
+      byId.set(record.lesson.id, list);
     }
-    const folded = [...latest.values()];
+    const folded = [...byId.values()].flat();
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, folded.map((r) => JSON.stringify(r) + "\n").join(""), "utf8");
     fs.renameSync(tmp, this.file);

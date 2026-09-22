@@ -10,7 +10,7 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-111%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-113%20passing-success.svg" />
 </p>
 
 ```console
@@ -149,7 +149,7 @@ memento run "解释 auth 如何工作，然后加一个 /healthz 路由"
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 111 个测试
+npm run check      # typecheck + 113 个测试
 npm run build      # dist/cli.js，约 160 KB
 node dist/cli.js run "…"
 ```

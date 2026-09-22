@@ -170,6 +170,34 @@
   details.evidence summary { cursor: pointer; color: var(--faint); font-size: 12px; }
   details.evidence ul { margin: 6px 0 2px; padding-left: 18px; color: var(--sub); font-size: 12.5px; }
 
+  /* lesson evolution — the confidence arc drawn from the append-only log */
+  details.evolution { margin-top: 9px; border-top: 1px dashed var(--line-soft); padding-top: 8px; }
+  details.evolution summary { cursor: pointer; color: var(--violet); font: 11.5px var(--mono); letter-spacing: 0.3px; }
+  details.evolution summary:hover { color: var(--ink); }
+  .evol-wrap { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; margin-top: 9px; }
+  .spark { background: var(--raise); border: 1px solid var(--line-soft); border-radius: 8px; padding: 6px 8px 2px; }
+  .spark svg { display: block; }
+  .spark .axis { font: 9.5px var(--mono); fill: var(--faint); }
+  .evol-events { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+  .evol-event { display: flex; gap: 9px; align-items: baseline; font-size: 12px; }
+  .evol-event .dt { color: var(--faint); font: 10.5px var(--mono); min-width: 96px; }
+  .evol-event .d { color: var(--sub); }
+  .evol-event .d b.up { color: var(--aqua); }
+  .evol-event .d b.down { color: var(--red); }
+  .evol-event .d b.out { color: var(--faint); }
+  .evol-event .d b.new { color: var(--violet); }
+
+  /* resume hint on a session detail */
+  .resume-hint {
+    display: inline-flex; align-items: center; gap: 8px; margin: 8px 0 0;
+    padding: 7px 12px; border-radius: 8px; font: 12px var(--mono);
+    background: var(--violet-soft); border: 1px solid color-mix(in srgb, var(--violet) 35%, var(--line));
+    color: var(--sub);
+  }
+  .resume-hint .cmd { color: var(--ink); }
+  .resume-hint .copy { color: var(--violet); font: 11px var(--sans); font-weight: 600; }
+  .resume-hint .copy:hover { color: var(--aqua); }
+
   /* ------------------------------------------------------------------ spec */
   .spec-grid { display: grid; grid-template-columns: 250px 1fr; gap: 24px; align-items: start; }
   @media (max-width: 760px) { .spec-grid { grid-template-columns: 1fr; } }
@@ -236,6 +264,52 @@ const confBar = (c, retired) => {
   return '<span class="conf"><span class="conf-bar"><i class="' + cls + '" style="width:' + pct + '%"></i></span><span class="num">' + c.toFixed(2) + "</span></span>";
 };
 const truncate = (s, n) => (s.length > n ? s.slice(0, n) + " …" : s);
+
+/* ------------------------------------------------- lesson evolution arc */
+/** Inline SVG confidence curve — the visible "the agent gets smarter" proof. */
+function sparkSvg(h, uid) {
+  const W = 230, H = 48, P = 7;
+  const x = (i) => P + (h.length === 1 ? (W - 2 * P) / 2 : (i * (W - 2 * P)) / (h.length - 1));
+  const y = (c) => H - P - Math.max(0, Math.min(1, c)) * (H - 2 * P);
+  const gid = "g" + uid;
+  let dots = "";
+  h.forEach((e, i) => {
+    const prev = i > 0 ? h[i - 1] : null;
+    const color = !prev ? "var(--violet)" : e.status === "retired" ? "var(--faint)" : e.contradicted > prev.contradicted ? "var(--red)" : e.reinforced > prev.reinforced ? "var(--aqua)" : "var(--violet)";
+    dots += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(e.confidence).toFixed(1) + '" r="3.2" fill="' + color + '"><title>' + fmtTime(e.ts) + " · " + e.confidence.toFixed(2) + "</title></circle>";
+  });
+  const line = h.length > 1 ? '<polyline fill="none" stroke="url(#' + gid + ')" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="' +
+    h.map((e, i) => x(i).toFixed(1) + "," + y(e.confidence).toFixed(1)).join(" ") + '"/>' : "";
+  const first = h[0], last = h[h.length - 1];
+  return '<svg width="' + W + '" height="' + H + '" role="img" aria-label="confidence arc">' +
+    '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="0">' +
+    '<stop offset="0" stop-color="var(--violet)"/><stop offset="1" stop-color="var(--aqua)"/></linearGradient></defs>' +
+    '<line x1="' + P + '" y1="' + (H - P) + '" x2="' + (W - P) + '" y2="' + (H - P) + '" stroke="var(--line)" stroke-width="1"/>' +
+    line + dots +
+    '<text class="axis" x="' + P + '" y="' + (H - P + 9) + '">' + fmtTime(first.ts).slice(5) + " · " + first.confidence.toFixed(2) + "</text>" +
+    '<text class="axis" x="' + (W - P) + '" y="' + (H - P + 9) + '" text-anchor="end">' + fmtTime(last.ts).slice(5) + " · " + last.confidence.toFixed(2) + "</text>" +
+    "</svg>";
+}
+
+/** Chronological event list — one row per point on the arc. */
+function evolHtml(h) {
+  const rows = h.map((e, i) => {
+    const prev = i > 0 ? h[i - 1] : null;
+    let d;
+    if (!prev) d = "<b class='new'>created</b> at " + e.confidence.toFixed(2);
+    else if (e.status === "retired" && prev.status !== "retired") d = "<b class='out'>retired</b> — left the recall pool at " + e.confidence.toFixed(2);
+    else if (e.contradicted > prev.contradicted) d = "<b class='down'>−0.30 contradicted</b> → " + e.confidence.toFixed(2);
+    else if (e.reinforced > prev.reinforced) d = "<b class='up'>+0.15 reinforced</b> → " + e.confidence.toFixed(2);
+    else d = "confidence " + e.confidence.toFixed(2);
+    return '<div class="evol-event"><span class="dt">' + fmtTime(e.ts) + '</span><span class="d">' + d + "</span></div>";
+  });
+  return rows.join("");
+}
+
+/** Copy-to-clipboard helper for the resume hint. */
+function copyCmd(text) {
+  if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+}
 
 /* --------------------------------------------------- mini markdown render */
 function mdInline(s) {
@@ -347,6 +421,9 @@ async function renderSessionDetail(id) {
     '<span class="mono faint">' + esc(h.sessionId) + "</span></div>" +
     '<div class="task">' + esc(h.task) + "</div>" +
     '<div class="meta"><span>' + fmtTime(h.startedAt) + "</span><span>" + esc(h.provider + "/" + h.model) + "</span><span>" + esc(h.cwd) + "</span></div></div>");
+  const resumeCmd = "memento resume " + h.sessionId;
+  parts.push('<div class="resume-hint"><span>' + (d.status === "done" ? "done — pick it back up any time →" : "interrupted? continue the same session →") +
+    '</span><span class="cmd">$ ' + esc(resumeCmd) + '</span><button class="copy" onclick="copyCmd(\'' + esc(resumeCmd) + '\')">copy</button></div>');
   parts.push('<div class="timeline">');
   for (const e of d.entries) parts.push(entryHtml(e));
   parts.push("</div>");
@@ -417,6 +494,12 @@ async function renderMemory() {
 }
 
 function lessonHtml(l, retired) {
+  const uid = String(l.id).replace(/[^a-zA-Z0-9]/g, "");
+  const evol = l.history && l.history.length
+    ? "<details class='evolution'><summary>evolution · " + l.history.length + " point" + (l.history.length === 1 ? "" : "s") + "</summary>" +
+      '<div class="evol-wrap"><div class="spark">' + sparkSvg(l.history, uid) + "</div>" +
+      '<div class="evol-events">' + evolHtml(l.history) + "</div></div></details>"
+    : "";
   return '<div class="lesson' + (retired ? " retired" : "") + '">' +
     '<div class="top">' + confBar(l.confidence, retired) + kindBadge(l.kind) +
       '<span class="meta" style="margin-left:auto"><span>↑' + l.reinforced + " ↓" + l.contradicted + "</span><span>" + relTime(l.lastSeen) + "</span></span></div>" +
@@ -424,6 +507,7 @@ function lessonHtml(l, retired) {
     '<div class="meta"><span>' + esc(l.id) + "</span>" + l.tags.slice(0, 8).map((t) => "<span>" + esc(t) + "</span>").join("") + "</div>" +
     (l.evidence && l.evidence.length ? "<details class='evidence'><summary>evidence (" + l.evidence.length + ")</summary><ul>" +
       l.evidence.map((ev) => "<li>" + esc(ev) + "</li>").join("") + "</ul></details>" : "") +
+    evol +
     "</div>";
 }
 
@@ -456,14 +540,20 @@ async function renderSpec(file) {
 
 /* --------------------------------------------------------------- routing */
 async function route() {
-  const hash = location.hash.replace(/^#\/?/, "");
-  const parts = hash.split("/").map(decodeURIComponent);
+  const hashFull = location.hash.replace(/^#\/?/, "");
+  // Query may ride inside the hash (`#/memory?evol`) — split it off first.
+  const [hashPath, hashQuery] = hashFull.split("?");
+  const parts = hashPath.split("/").map(decodeURIComponent);
   try {
     if (parts[0] === "sessions" && parts[1]) await renderSessionDetail(parts[1]);
     else if (parts[0] === "sessions") await renderSessions();
     else if (parts[0] === "memory") await renderMemory();
     else if (parts[0] === "spec") await renderSpec(parts.slice(1).join("/") || null);
     else await renderOverview();
+    // `?evol` deep link: open every evolution arc (shareable "it learns" view).
+    if (hashQuery && new URLSearchParams(hashQuery).has("evol")) {
+      document.querySelectorAll("details.evolution").forEach((d) => (d.open = true));
+    }
   } catch (err) {
     main().innerHTML = '<div class="card err" style="margin-top:20px"><div class="who">error</div>' + esc(err.message || String(err)) + "</div>";
   }

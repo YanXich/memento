@@ -186,7 +186,11 @@ function lessons(root: string): Record<string, unknown> {
   const byConfidence = (a: Lesson, b: Lesson): number => b.confidence - a.confidence || b.lastSeen - a.lastSeen;
   const active = all.filter((l) => l.status === "active").sort(byConfidence);
   const retired = all.filter((l) => l.status === "retired").sort((a, b) => b.lastSeen - a.lastSeen);
-  return { active, retired, stats: store.stats() };
+  // One pass over the raw log gives every lesson its evolution arc — the
+  // workbench draws the confidence curve from this (the visible "it learns").
+  const histories = store.histories();
+  const withHistory = (l: Lesson) => ({ ...l, history: histories.get(l.id) ?? [] });
+  return { active: active.map(withHistory), retired: retired.map(withHistory), stats: store.stats() };
 }
 
 function spec(root: string): Record<string, unknown> {

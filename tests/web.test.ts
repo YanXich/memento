@@ -90,9 +90,12 @@ describe("web workbench", () => {
     expect(ov.sessions.total).toBe(1);
     expect(ov.lessons.recent[0]?.id).toBe("l_test01");
 
-    const lessons = (await (await fetch(`${s.url}/api/lessons`)).json()) as { active: { id: string }[]; retired: unknown[] };
+    const lessons = (await (await fetch(`${s.url}/api/lessons`)).json()) as { active: { id: string; history: { op: string; confidence: number }[] }[]; retired: unknown[] };
     expect(lessons.active.map((l) => l.id)).toEqual(["l_test01"]);
     expect(lessons.retired).toEqual([]);
+    // The evolution arc rides along — the workbench draws the curve from it.
+    expect(lessons.active[0]?.history).toHaveLength(1);
+    expect(lessons.active[0]?.history[0]).toMatchObject({ op: "upsert", confidence: 0.35 });
 
     const sessions = (await (await fetch(`${s.url}/api/sessions`)).json()) as { sessions: { id: string; turns: number; status: string }[] };
     expect(sessions.sessions[0]).toMatchObject({ id: "s_test01", turns: 1, status: "done" });

@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  COMPACT_HISTORY_KEEP,
   CONFIDENCE_START,
   LessonStore,
 } from "../src/memory/store.ts";
@@ -64,7 +65,21 @@ describe("LessonStore", () => {
     expect(store.get(lesson.id)!.status).toBe("retired");
   });
 
-  it("compacts the history to one record per lesson without changing state", () => {
+  it("histories() folds the append-only log into per-lesson evolution arcs", () => {
+    const store = LessonStore.load(dir);
+    const lesson = store.add({ text: "Builds run with npm run build", kind: "constraint", evidence: "e", sessionId: "s_1" });
+    store.reinforce(lesson.id, "again", "s_2");
+    store.contradict(lesson.id, "not this time", "s_3");
+
+    const arc = store.histories().get(lesson.id)!;
+    expect(arc).toHaveLength(3);
+    expect(arc[0]).toMatchObject({ op: "upsert", confidence: CONFIDENCE_START, reinforced: 0, contradicted: 0, status: "active" });
+    expect(arc[1]).toMatchObject({ op: "upsert", confidence: CONFIDENCE_START + 0.15, reinforced: 1 });
+    expect(arc[2]).toMatchObject({ op: "upsert", contradicted: 1, status: "active" });
+    expect(arc[2]!.confidence).toBeCloseTo(CONFIDENCE_START + 0.15 - 0.3);
+  });
+
+it("compacts to a bounded trail per lesson without changing state", () => {
     const store = LessonStore.load(dir);
     const kept = store.add({ text: "Tests run with npm test", kind: "constraint", evidence: "e", sessionId: "s_1" });
     store.reinforce(kept.id, "again", "s_2");
@@ -77,14 +92,32 @@ describe("LessonStore", () => {
 
     const { before, after } = store.compact();
     expect(before).toBe(5);
-    expect(after).toBe(2); // one record per lesson, retired kept
-    expect(lines().length).toBe(2);
+    expect(after).toBe(5); // under the keep cap, the evolution trail survives intact
+    expect(lines().length).toBe(5);
 
     // Folded state survives the rewrite exactly.
     const reloaded = LessonStore.load(dir);
     expect(reloaded.get(kept.id)!.confidence).toBeCloseTo(CONFIDENCE_START + 0.3);
     expect(reloaded.get(kept.id)!.reinforced).toBe(2);
     expect(reloaded.get(retired.id)!.status).toBe("retired");
+    // The evolution arc survives too: create + 2 reinforces for `kept`.
+    expect(reloaded.histories().get(kept.id)).toHaveLength(3);
+    expect(reloaded.histories().get(retired.id)).toHaveLength(2);
+  });
+
+it("caps each lesson's trail at COMPACT_HISTORY_KEEP records", () => {
+    const store = LessonStore.load(dir);
+    const kept = store.add({ text: "CI runs on every push", kind: "constraint", evidence: "e", sessionId: "s_1" });
+    for (let i = 0; i < 12; i += 1) store.reinforce(kept.id, `confirmed ${i}`, `s_${i + 2}`);
+    const { before, after } = store.compact();
+    expect(before).toBe(13);
+    expect(after).toBe(COMPACT_HISTORY_KEEP);
+
+    const reloaded = LessonStore.load(dir);
+    expect(reloaded.histories().get(kept.id)).toHaveLength(COMPACT_HISTORY_KEEP);
+    // The folded latest state is unchanged — only the old log shrinks.
+    expect(reloaded.get(kept.id)!.reinforced).toBe(12);
+    expect(reloaded.get(kept.id)!.status).toBe("active");
   });
 
   it("compacting an empty store is a no-op", () => {

@@ -68,3 +68,18 @@ export interface MemoryStats {
   byKind: Record<LessonKind, number>;
   avgConfidence: number;
 }
+
+/**
+ * One point on a lesson's evolution arc, folded from the append-only store.
+ * The workbench draws the confidence curve from these — the visible proof
+ * that the agent gets measurably smarter (or honestly retires what it got
+ * wrong) session after session.
+ */
+export interface LessonEvent {
+  op: "upsert" | "retire";
+  ts: number;
+  confidence: number;
+  reinforced: number;
+  contradicted: number;
+  status: "active" | "retired";
+}
