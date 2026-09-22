@@ -7,16 +7,18 @@
 Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束时，它会做一次反思（reflection），把发生的事提炼成**经验（lessons）**——带置信度存储：被证据证实则上升，被现实反驳则下降。每次任务开始时，它先召回相关规格与经验，于是这个 Agent 在**你的**代码库上越用越聪明。
 
 <p align="center">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
-  <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
+  <a href="https://github.com/memento-agent/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/memento-agent/memento/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/memento-agent"><img alt="npm" src="https://img.shields.io/npm/v/memento-agent?color=a78bfa" /></a>
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
+  <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-120%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-148%20passing-success.svg" />
 </p>
 
 ```console
 $ memento run "给登录接口加上限流"
 
-◈ memento v0.1.0 · deepseek/deepseek-chat · ~/work/api
+◈ memento v0.2.0 · deepseek/deepseek-chat · ~/work/api
 task: 给登录接口加上限流
 ▸ recalled 2 lesson(s) from memory
 ▸ indexing repository
@@ -151,10 +153,12 @@ memento run "解释 auth 如何工作，然后加一个 /healthz 路由"
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 120 个测试
+npm run check      # typecheck + 148 个测试
 npm run build      # dist/cli.js，约 160 KB
 node dist/cli.js run "…"
 ```
+
+第一次用 memento？[examples/starter-template/](examples/starter-template/) 是一个开箱即骑的模板项目——自带 spec、bench 任务族和 15 分钟全流程导览。
 
 ---
 

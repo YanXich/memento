@@ -52,6 +52,11 @@ All notable changes to memento are documented here. Format follows
   every lesson; `?evol` deep-links to it.
 - **Branded landing page** — animated terminal demo, cold-vs-warm learning-curve
   chart, chat showcase, OG/Twitter cards; static, CDN-free, GitHub Pages ready.
+- **Release pipeline** — GitHub Actions: CI matrix (2 OS x 2 Node versions,
+  typecheck + tests), then a build job that smoke-tests the shipped bundle
+  (CLI boot, plugin inventory, full-loop demo, memory-log concurrency, dry
+  bench sequential + parallel); tags publish to npm with provenance. README
+  badges for CI and npm.
 
 ### Fixed
 

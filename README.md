@@ -7,16 +7,18 @@
 Memento is a spec-driven coding agent for the terminal. Every session ends with a reflection pass that turns what happened into *lessons* — stored with confidence scores that rise when evidence confirms them and fall when reality contradicts them. Every task starts by recalling the spec and the lessons that matter, so the agent gets measurably better at *your* codebase over time.
 
 <p align="center">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
-  <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
+  <a href="https://github.com/memento-agent/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/memento-agent/memento/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/memento-agent"><img alt="npm" src="https://img.shields.io/npm/v/memento-agent?color=a78bfa" /></a>
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
+  <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-120%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-148%20passing-success.svg" />
 </p>
 
 ```console
 $ memento run "add rate limiting to the login endpoint"
 
-◈ memento v0.1.0 · deepseek/deepseek-chat · ~/work/api
+◈ memento v0.2.0 · deepseek/deepseek-chat · ~/work/api
 task: add rate limiting to the login endpoint
 ▸ recalled 2 lesson(s) from memory
 ▸ indexing repository
@@ -155,10 +157,12 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 120 tests
+npm run check      # typecheck + 148 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```
+
+New to memento? [examples/starter-template/](examples/starter-template/) is a ready-to-ride project — spec, bench tasks, and a 15-minute walkthrough of the whole loop.
 
 ---
 

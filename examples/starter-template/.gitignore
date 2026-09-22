@@ -1,0 +1,5 @@
+# memento machine state — sessions, memory, plugins and config are runtime
+# artifacts. The spec is human-owned and stays tracked.
+.memento/*
+!.memento/spec/
+!.memento/spec/**

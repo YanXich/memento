@@ -1,0 +1,8 @@
+{
+  "$comment": "A family of similar tasks — `memento bench` measures how much cheaper each one gets as memory accumulates. Run with --dry for a zero-network demo.",
+  "tasks": [
+    { "name": "implement-greet", "task": "Implement the greet command from the sample feature spec" },
+    { "name": "implement-bye", "task": "Implement a bye command in the same style as greet" },
+    { "name": "implement-hello-again", "task": "Implement a hello-again command in the same style as greet" }
+  ]
+}

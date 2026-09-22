@@ -111,6 +111,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ README 重构（双语）：四答案定位（记忆/spec/插件/生态原生）+ 新输出示例 + 完整 CLI 表 + 安全模型（含 MCP 信任）
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
 - ✅ 落地页（静态 + GitHub Pages）：hero 定位语 + 动画终端（30s demo + chat）+ 记忆基准学习曲线 SVG + CTA；OG/twitter 标签；浏览器实测截图存证
+- ✅ 发布闭环：GitHub Actions CI（双 OS × 双 Node 矩阵 typecheck+tests；build 后 CLI 启动/插件清单/全链路 demo/内存并发/bench dry 串行+并行冒烟）+ tag 触发 npm publish --provenance workflow；README 双语徽章（CI/npm）
 - ⬜ 传播：HN/Reddit/V2EX 发帖节奏、benchmark 博客、模板仓库（memento-starter）
 - ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑
 

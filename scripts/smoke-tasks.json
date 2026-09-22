@@ -1,0 +1,8 @@
+{
+  "$comment": "CI smoke tasks for `memento bench --dry` — deterministic, zero network.",
+  "tasks": [
+    { "name": "add-version-flag", "task": "Add a --version flag to the CLI" },
+    { "name": "add-help-flag", "task": "Add a --help flag to the CLI" },
+    { "name": "add-config-flag", "task": "Add a --config flag to the CLI" }
+  ]
+}

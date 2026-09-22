@@ -1,19 +1,19 @@
-name: ci
+name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
 
 jobs:
   check:
-    name: check (${{ matrix.os }}, node ${{ matrix.node }})
+    name: typecheck + tests (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: ["20", "22"]
+        node: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,22 +22,35 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # The suite is fully offline: a fake OpenAI server speaks the real SSE
+      # wire format and a real MCP server subprocess runs end-to-end.
       - run: npm test
-      - run: npm run build
 
-  smoke:
-    name: end-to-end smoke (ubuntu)
+  build:
+    name: build + package smoke (ubuntu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: CLI boots
+        run: node dist/cli.js --version
+      - name: plugin inventory works
+        run: node dist/cli.js plugins list --json
       # Real processes, real tool execution, zero network: a scripted model
-      # drives the full recall → gate → build → verify → reflect loop.
-      - run: node scripts/demo.mjs
+      # drives the full recall -> gate -> build -> verify -> reflect loop.
+      - name: full-loop demo
+        run: node scripts/demo.mjs
       # 12 parallel writers on one memory log — proves the O_APPEND contract.
-      - run: npm run stress:memory
+      - name: memory log concurrency
+        run: npm run stress:memory
+      # The whole agent loop runs deterministically with the dry provider:
+      # zero network, reproducible — sequential and parallel schedules.
+      - name: dry bench run
+        run: node dist/cli.js bench scripts/smoke-tasks.json --dry --json
+      - name: dry bench run, parallel schedule
+        run: node dist/cli.js bench scripts/smoke-tasks.json --dry --json --jobs 3
