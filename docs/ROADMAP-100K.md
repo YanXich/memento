@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **148/148 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场）· 构建成功。
+**验证状态**：typecheck 干净 · **164/164 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -107,6 +107,9 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 
 ### Phase 4 — 品牌与增长（进行中：品牌化 ✅ / 落地页 ✅ / 发布闭环 ✅ / 传播 ⬜）
 - ✅ 前端品牌化（**清新紫蓝 + 水木元素**）：web workbench 紫蓝渐变调色板（violet #a78bfa → aqua #6fe3d0）、顶部 water line、径向光晕背景、渐变 logo/置信条；终端输出品牌化（◈ 品牌徽记 + 紫蓝工具行 + 语义色状态）；浏览器实测截图存证（_shots/）
+- ✅ 品牌升级 v2（工作台 + 落地页）：SVG 记忆环 logo + favicon（渐变开口环 + 圆点）、渐变 tab 下划线、首次使用 onboarding hero（三步引导 + 可复制命令）、stat hover 抬升、时间线入场动效、copy 按钮内联反馈；落地页 emoji 全部替换为手绘双色 SVG 图标体系；浏览器双态实测（有数据 + 空 workspace）零 console 报错
+- ✅ 首次使用漏斗（first-run funnel）：`memento init --interactive` TTY 向导（provider/model/auto-approve 菜单 + 环境变量 key 实时状态）+ `memento doctor --fix` 结构化自助修复（缺 provider 时自动回退到第一个就绪 provider）；CLI 自动检测 TTY 决定交互/非交互
+- ✅ 可靠性加固批次：会话写入者锁（pid 存活检查 + 陈旧锁窃取，防双进程交错追加）、web 路径安全（空 id 404 / 畸形编码 400 / 安全响应头）、repo map 防饿死（遍历上限提升 + 源码读取预算）、loop + 一次性补全重试带 700ms 退避（429/5xx/流中断）
 - ✅ workbench 插件页（Plugins tab + /api/plugins）：静态盘点已装插件（名称/来源/rev/安装时间/入口，绝不执行插件代码）+ 信任横幅（trustProjectPlugins 未开启时诚实提示“未加载”）+ overview 插件统计卡；共享 scanPluginDir（loader 与 CLI 单一事实源）
 - ✅ README 重构（双语）：四答案定位（记忆/spec/插件/生态原生）+ 新输出示例 + 完整 CLI 表 + 安全模型（含 MCP 信任）
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
@@ -125,7 +128,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 
 ## 5. 验收路线图（里程碑）
 
-- **M1（已完成）**：Phase 1-3 全绿（148/148 测试）→ `v0.2.0` tag 已打（含插件市场 + 插件页 + CI/发布闭环 + starter 模板）
+- **M1（已完成）**：Phase 1-3 全绿（164/164 测试）→ `v0.2.0` tag 已打（含插件市场 + 插件页 + CI/发布闭环 + starter 模板）
 - **M2（进行中）**：落地页 + 记忆基准真实数据 → 第一篇 benchmark 博客（leaderboard 页面已就绪）
 - **M3（一个月）**：MCP 双通道文章 + 落地页 → HN 首发
 - **M4（持续）**：插件生态 + 社区运营 → 冲 10k → 冲 100k
