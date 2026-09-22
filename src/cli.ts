@@ -17,6 +17,7 @@ import { doctorCmd, initCmd } from "./cli/commands/doctor.ts";
 import { webCmd } from "./cli/commands/web.ts";
 import { serveMcp } from "./cli/commands/serve.ts";
 import { undoCmd } from "./cli/commands/undo.ts";
+import { pluginsTask } from "./cli/commands/plugins.ts";
 
 const program = new Command();
 
@@ -324,6 +325,55 @@ program
   .option(...cwdOption)
   .action((opts) => {
     process.exitCode = undoCmd(rootOf(opts));
+  });
+
+const plugins = program.command("plugins").description("the plugin marketplace — install, scaffold and inspect plugins");
+
+plugins
+  .command("list")
+  .description("list installed plugins (project + global) with their origin")
+  .option(...cwdOption)
+  .option("--global", "only the global scope (~/.memento/plugins)")
+  .option("--json", "machine-readable output")
+  .action(async (opts) => {
+    process.exitCode = await pluginsTask({ action: "list", root: rootOf(opts), global: Boolean(opts.global), json: Boolean(opts.json) });
+  });
+
+plugins
+  .command("install")
+  .description("install a plugin: owner/repo, owner/repo#subdir, any git URL, or a local path")
+  .argument("<source>", "plugin source")
+  .option(...cwdOption)
+  .option("--global", "install into ~/.memento/plugins instead of the project")
+  .option("-y, --yes", "skip the security confirmation")
+  .action(async (source: string, opts) => {
+    process.exitCode = await pluginsTask({
+      action: "install",
+      source,
+      root: rootOf(opts),
+      global: Boolean(opts.global),
+      yes: Boolean(opts.yes),
+    });
+  });
+
+plugins
+  .command("init")
+  .description("scaffold a new plugin file")
+  .argument("<name>", "plugin name")
+  .option(...cwdOption)
+  .option("--global", "scaffold into ~/.memento/plugins")
+  .action(async (name: string, opts) => {
+    process.exitCode = await pluginsTask({ action: "init", name, root: rootOf(opts), global: Boolean(opts.global) });
+  });
+
+plugins
+  .command("remove")
+  .description("remove an installed plugin (by name)")
+  .argument("<name>", "plugin name")
+  .option(...cwdOption)
+  .option("--global", "remove from ~/.memento/plugins")
+  .action(async (name: string, opts) => {
+    process.exitCode = await pluginsTask({ action: "remove", name, root: rootOf(opts), global: Boolean(opts.global) });
   });
 
 program

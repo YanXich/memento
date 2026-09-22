@@ -46,17 +46,45 @@ export function pluginDirs(cwd: string, opts: Partial<LoadPluginsOptions> = {}):
 }
 
 /**
+ * One-level scan of a plugins dir. Two shapes are plugins:
+ *  - a standalone file `*.ts|mjs|js` (excluding .d.ts)
+ *  - a package dir whose entry is `<dir>/index.{ts,mjs,js}` — this is the
+ *    shape `memento plugins install` produces, so a plugin can carry a
+ *    manifest, README and helpers without them being scanned individually.
+ */
+function pluginEntries(dir: string): { file: string; name: string }[] {
+  const found: { file: string; name: string }[] = [];
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return found;
+  }
+  for (const e of entries) {
+    if (e.isFile() && /\.(ts|mjs|js)$/.test(e.name) && !e.name.endsWith(".d.ts")) {
+      found.push({ file: path.join(dir, e.name), name: e.name.replace(/\.(ts|mjs|js)$/, "") });
+    } else if (e.isDirectory() && !e.name.startsWith(".")) {
+      for (const idx of ["index.ts", "index.mjs", "index.js"]) {
+        const idxPath = path.join(dir, e.name, idx);
+        if (fs.existsSync(idxPath)) {
+          found.push({ file: idxPath, name: e.name });
+          break;
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/**
  * True when a plugins directory contains at least one loadable plugin file
- * (.ts/.mjs/.js, excluding .d.ts). An empty scaffolded directory is not
- * "plugins found" — it must not trigger trust warnings.
+ * (.ts/.mjs/.js, excluding .d.ts) or plugin package (dir with an index).
+ * An empty scaffolded directory is not "plugins found" — it must not
+ * trigger trust warnings.
  */
 export function hasPluginFiles(dir: string): boolean {
-  try {
-    if (!fs.existsSync(dir)) return false;
-    return fs.readdirSync(dir).some((f) => /\.(ts|mjs|js)$/.test(f) && !f.endsWith(".d.ts"));
-  } catch {
-    return false;
-  }
+  if (!fs.existsSync(dir)) return false;
+  return pluginEntries(dir).length > 0;
 }
 
 export async function loadPlugins(
@@ -68,22 +96,15 @@ export async function loadPlugins(
 
   for (const { dir } of pluginDirs(opts.cwd, opts)) {
     if (!fs.existsSync(dir)) continue;
-    let entries: string[] = [];
-    try {
-      entries = fs.readdirSync(dir).filter((f) => /\.(ts|mjs|js)$/.test(f) && !f.endsWith(".d.ts"));
-    } catch {
-      continue;
-    }
+    const entries = pluginEntries(dir);
     // Project dir loads after global — same name from project overrides global.
-    entries.sort();
+    entries.sort((a, b) => a.name.localeCompare(b.name));
 
-    for (const entry of entries) {
-      const file = path.join(dir, entry);
-      const fallbackName = entry.replace(/\.(ts|mjs|js)$/, "");
-      if (seen.has(fallbackName)) continue;
-      const result = await loadOne(file, fallbackName, host, opts);
+    for (const { file, name } of entries) {
+      if (seen.has(name)) continue;
+      const result = await loadOne(file, name, host, opts);
       loaded.push(result);
-      if (!result.error) seen.add(fallbackName);
+      if (!result.error) seen.add(name);
     }
   }
   return loaded;

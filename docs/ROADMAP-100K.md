@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **136/136 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度）· 构建成功。
+**验证状态**：typecheck 干净 · **144/144 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -101,7 +101,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ MCP 信任模型：仅用户级配置加载，项目级需 `trustProjectMcp: true`（S3 同模式，防 clone RCE）
 - ✅ 原生 git 集成：只读 git_status/git_diff/git_log 工具 + diff 感知 commit 建议（含 untracked 文件）+ `memento undo` 撤销快照链
 - ✅ 子 agent 分派：内建 `subagent` 工具派出只读探索者（独立迷你循环 + 独立 JSONL 转录 + 主日志链指；只读工具带，无递归无写入）
-- ⬜ 插件市场雏形（官方示例插件仓库 + `memento plugins install`）——顺延
+- ✅ 插件市场雏形：`memento plugins install owner/repo[#subdir]`（git URL/本地路径均可）+ 来源 manifest（source/rev/installedAt）+ 安全确认（先列文件再问）+ `list`/`init`/`remove`；loader 支持目录包形态（plugins/<name>/index.ts）
 - 验收：MCP 双通道 22 测试 + git/undo 15 测试全绿 ✅
 
 ### Phase 4 — 品牌与增长（进行中：品牌化 ✅ / 落地页 ⬜）

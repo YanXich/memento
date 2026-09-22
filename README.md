@@ -101,20 +101,22 @@ import type { MementoPlugin } from "memento-agent";
 
 export default {
   name: "changelog",
-  register(api) {
-    api.tools.register({
+  setup(ctx) {
+    ctx.registerTool({
       name: "changelog_add",
-      description: "Append a line to CHANGELOG.md",
-      parameters: { line: { type: "string", description: "entry text", required: true } },
-      async execute({ line }, ctx) { /* ... */ },
+      description: "append one line to CHANGELOG.md",
+      schema: { safeParse: (v) => ({ success: true, data: v }) },
+      execute: async () => ({ output: "appended" }),
     });
-    const off = api.events.on("session_end", (e) => console.log("bye", e.sessionId));
+    const off = ctx.on("session_end", (e) => console.log("bye", e.sessionId));
     return () => off(); // dispose — registration is reversible
   },
 } satisfies MementoPlugin;
 ```
 
-Every `register` call returns a **disposer**. Unloading a plugin reverses every registration it made — tools, event listeners, spec checkers. Plugins are guests, not residents.
+Every registration returns a **disposer**. Unloading a plugin reverses every registration it made — tools, event listeners, spec checkers. Plugins are guests, not residents.
+
+Sharing plugins is just as light: `memento plugins install owner/repo` (or any git URL, or a local path) copies a plugin package into `.memento/plugins/` with a provenance manifest — source, revision, install time — after listing the files it is about to copy and asking once. `memento plugins list` shows where every plugin came from, `memento plugins init` scaffolds one, and project installs stay covered by the same `trustProjectPlugins` checkout protection as hand-written plugins.
 
 ### 4. Ecosystem native: MCP, git, undo, commit hints
 
@@ -221,6 +223,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento bench <tasks.json>` | cold vs warm runs over a task family — the memory effect, measured (`--dry`, `--json`, `--no-cold`, `--keep`, `--report <path>`, `--jobs <n>`) |
 | `memento chat` | interactive session — one persistent log, per-message memory recall, inline approvals (`--session <id>` continues, `-y`, `--max-turns`, `--temperature`) |
 | `memento memory export` / `import <file>` | team memory as code — commit an export, teammates import it (`--out`, `--active-only`) |
+| `memento plugins list` / `install <src>` / `init <name>` / `remove <name>` | the plugin marketplace: install `owner/repo`, any git URL, or a local path (provenance manifest, confirmation first, `--global`) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
 | `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
 
