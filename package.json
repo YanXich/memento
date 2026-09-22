@@ -4,6 +4,15 @@
   "description": "Spec-driven coding agent with persistent memory. Every session makes it smarter; every spec stays alive.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/memento-agent/memento.git"
+  },
+  "homepage": "https://github.com/memento-agent/memento#readme",
+  "bugs": {
+    "url": "https://github.com/memento-agent/memento/issues"
+  },
+  "author": "memento contributors",
   "engines": {
     "node": ">=20.10.0"
   },
