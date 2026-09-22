@@ -91,6 +91,8 @@ export { runTask } from "./cli/commands/run.ts";
 export type { RunOptions } from "./cli/commands/run.ts";
 export { resumeTask } from "./cli/commands/resume.ts";
 export type { ResumeOptions } from "./cli/commands/resume.ts";
+export { benchTask } from "./cli/commands/bench.ts";
+export type { BenchOptions, BenchResult, BenchRun, BenchTask } from "./cli/commands/bench.ts";
 export { buildLoopHooks } from "./cli/hooks.ts";
 export type { HooksLlm } from "./cli/hooks.ts";
 export { runAftermath, printSummary } from "./cli/aftermath.ts";

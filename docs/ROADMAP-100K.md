@@ -59,9 +59,10 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 ## 2. 三大增长杠杆（按 ROI 排序）
 
 ### 杠杆 1：记忆基准（差异化核心）
-- 自建 benchmark 脚本：给定 N 个"踩坑任务"（框架版本坑、平台坑、项目特定约定），
-  对比"有记忆 vs 无记忆"的第二次解决耗时/token/成功率。
-- 输出 leaderboard 页面（静态，GitHub Pages 可托管）→ 长期 SEO 流量 → 吸引实验者 → 传播。
+- ✅ 自建基准 harness 已交付：`memento bench tasks.json` 把一族相似任务冷/热对比跑（冷=全新副本零记忆，热=召回经验），
+  输出学习曲线与省下的轮数/token；`--dry` 确定性零网络 provider 让 harness 自身可测、可演示、可进 CI。
+- ⬜ 跑真实数据：用同一族任务在 deepseek 等真实模型上跑出冷/热对比数字（第二次解决同类问题少用多少 token）。
+- ⬜ 输出 leaderboard 页面（静态，GitHub Pages 可托管）→ 长期 SEO 流量 → 吸引实验者 → 传播。
 - 这是别的 agent 做不了的内容，因为记忆是 Memento 独有的硬功能。
 
 ### 杠杆 2：MCP 双通道（生态入场券）
@@ -107,7 +108,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
 - ⬜ 落地页（静态 + GitHub Pages）：hero 一行定位语 + 记忆基准图表 + 30 秒 demo
 - ⬜ 传播：HN/Reddit/V2EX 发帖节奏、benchmark 博客、模板仓库（memento-starter）
-- ⬜ 记忆基准（杠杆 1）leaderboard 页面
+- ⬜ 记忆基准（杠杆 1）真实数据 + leaderboard 页面（harness `memento bench` 已交付 ✅）
 
 ## 4. 取舍原则（每步都要问）
 

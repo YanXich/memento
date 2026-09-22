@@ -10,7 +10,7 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-113%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-118%20passing-success.svg" />
 </p>
 
 ```console
@@ -126,6 +126,7 @@ Memento speaks the ecosystem's language, in both directions:
 - **Undo** — every `write` / `edit` / `apply_patch` snapshots the previous state to `.memento/undo/`. `memento undo` rolls back the last write batch, step by step. Crash containment for the file system.
 - **Plan first** — `memento plan` drafts a Plan/Act split before touching anything. Approve the plan, and the agent executes it step by step; decline, and nothing changes.
 - **Resume** — `memento resume s_…` continues an interrupted run: the exact transcript is replayed into the model and the loop goes on in the SAME session log, so the audit trail stays one story (verify → reflect → commit hint run again).
+- **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos.
 
 ---
 
@@ -149,7 +150,7 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 113 tests
+npm run check      # typecheck + 118 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```
@@ -214,6 +215,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento lessons` | list lessons (`--all`, `--json`), `--reinforce <id>`, `--contradict <id>`, `--retire <id>` |
 | `memento remember <text>` | record a lesson by hand — it joins the same confidence machinery |
 | `memento sessions` / `show <id>` / `resume <id>` | session history, transcripts, and interruption recovery (any unique prefix works) |
+| `memento bench <tasks.json>` | cold vs warm runs over a task family — the memory effect, measured (`--dry`, `--json`, `--no-cold`, `--keep`) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
 | `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
 

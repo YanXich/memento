@@ -8,6 +8,7 @@ import { VERSION } from "./version.ts";
 import { runTask } from "./cli/commands/run.ts";
 import { planTask } from "./cli/commands/plan.ts";
 import { resumeTask } from "./cli/commands/resume.ts";
+import { benchTask } from "./cli/commands/bench.ts";
 import { specDecisionCmd, specInit, specShowCmd, specStatusCmd, specVerifyCmd } from "./cli/commands/spec.ts";
 import { lessonsCmd, rememberCmd } from "./cli/commands/memory.ts";
 import { sessionShowCmd, sessionsCmd } from "./cli/commands/sessions.ts";
@@ -86,6 +87,32 @@ program
       ...(opts.provider ? { provider: opts.provider } : {}),
       ...(opts.model ? { model: opts.model } : {}),
       yes: Boolean(opts.yes),
+    });
+  });
+
+program
+  .command("bench")
+  .description("measure the memory effect: cold (no lessons) vs warm (recalled lessons) runs over a family of tasks")
+  .argument("<tasks-file>", "JSON file with { tasks: [{ name, task }] }")
+  .option(...cwdOption)
+  .option("-p, --provider <id>", "provider id")
+  .option("-m, --model <id>", "model id")
+  .option("--max-turns <n>", "hard cap on agent turns per run", (v) => parseInt(v, 10))
+  .option("--dry", "deterministic mock provider — zero network, for CI and demos")
+  .option("--no-cold", "skip the cold runs (warm learning curve only)")
+  .option("--keep", "keep the run directory for inspection")
+  .option("--json", "machine-readable output")
+  .action(async (file: string, opts) => {
+    process.exitCode = await benchTask({
+      file,
+      root: rootOf(opts),
+      ...(opts.provider ? { provider: opts.provider } : {}),
+      ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.maxTurns ? { maxTurns: opts.maxTurns } : {}),
+      dry: Boolean(opts.dry),
+      noCold: Boolean(opts.noCold),
+      keep: Boolean(opts.keep),
+      json: Boolean(opts.json),
     });
   });
 

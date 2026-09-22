@@ -10,7 +10,7 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-113%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-118%20passing-success.svg" />
 </p>
 
 ```console
@@ -126,6 +126,7 @@ Memento 说生态的语言，而且双向都会：
 - **Undo**——每次 `write` / `edit` / `apply_patch` 都会把改前状态快照到 `.memento/undo/`。`memento undo` 逐批回滚上一次写入。给文件系统装上安全气囊。
 - **先计划后动手**——`memento plan` 在动任何文件之前先起草 Plan/Act 计划。批准后 Agent 逐步执行；拒绝则一切如初。
 - **断点续跑**——`memento resume s_…` 继续被中断的任务：完整转录重新喂给模型，循环在**同一个**会话日志里继续，审计轨迹始终是一条完整故事（verify → reflect → commit hint 全部重跑）。
+- **基准测试**——`memento bench tasks.json` 把一族相似任务跑两遍对比：冷跑（全新副本、零记忆）vs 热跑（召回经验），输出学习曲线——随着经验积累，轮数与 token 究竟省了多少。`--dry` 换成确定性零网络 provider，CI 与演示里都能实测记忆效应。
 
 ---
 
@@ -149,7 +150,7 @@ memento run "解释 auth 如何工作，然后加一个 /healthz 路由"
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 113 个测试
+npm run check      # typecheck + 118 个测试
 npm run build      # dist/cli.js，约 160 KB
 node dist/cli.js run "…"
 ```
@@ -214,6 +215,7 @@ memento show s_h8x2kd91mf     # 查看转录（任意唯一前缀即可）
 | `memento lessons` | 列出经验（`--all`、`--json`），`--reinforce <id>`、`--contradict <id>`、`--retire <id>` |
 | `memento remember <text>` | 手动记录经验——进入同一套置信度机制 |
 | `memento sessions` / `show <id>` / `resume <id>` | 会话历史、转录与断点续跑（任意唯一前缀均可） |
+| `memento bench <tasks.json>` | 任务族冷/热对比跑——实测记忆效应（`--dry`、`--json`、`--no-cold`、`--keep`） |
 | `memento serve-mcp` | 通过 stdio 把记忆暴露为 MCP 服务器（搜索/添加经验、统计）——给 Claude Desktop、Cursor、goose…… |
 | `memento web` | 在浏览器里打开只读工作台——规格、记忆、会话（`--port` 指定端口，`--no-open` 不自动开浏览器） |
 
