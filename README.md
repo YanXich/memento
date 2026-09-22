@@ -293,6 +293,7 @@ Contributing: `npm run check` must be green (typecheck + tests). Tests drive the
 
 - [CHANGELOG.md](CHANGELOG.md) — what changed, release by release
 - [docs/BENCHMARK.md](docs/BENCHMARK.md) — the memory benchmark: what it measures, why it's honest, how to submit
+- [docs/blog/2026-09-22-memory-benchmark.md](docs/blog/2026-09-22-memory-benchmark.md) — the launch post: cold/warm protocol, reproducible-by-design, and the real-model matrix we are filling in
 - [docs/ROADMAP-100K.md](docs/ROADMAP-100K.md) — the road to 100k stars: levers, phases, trade-offs
 - [docs/COMPARISON.md](docs/COMPARISON.md) — an honest comparison with the projects we learned from
 

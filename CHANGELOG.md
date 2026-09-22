@@ -4,6 +4,34 @@ All notable changes to memento are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project versions with
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `memento bench tasks.json -C dir` now resolves the tasks file against the
+  workspace root, not the shell cwd.
+- `memento doctor` no longer reports "everything checks out" while no provider is
+  set (the agent cannot start) — a missing provider is counted as a problem, and
+  the doctor exits 1.
+- npm tarball no longer drops `examples/starter-template/.gitignore` (npm strips
+  dotfiles): the template ships a `gitignore` file to rename after copy, and the
+  npm package now includes `examples/` so its README links resolve.
+
+### Added
+
+- `memento init --provider <id>` writes a config stub for any built-in provider
+  (deepseek | openai | anthropic | ollama | moonshot) with its first model and a
+  provider-aware next-steps hint (local ollama gets "ollama serve" instead of an
+  env-var export). Unknown ids are rejected with the built-in list.
+- First-run error message for a missing model is now actionable: `memento init`,
+  `memento doctor`, or direct `--provider/--model` flags.
+- `bench --json` now emits machine-readable `provider`/`model` ids so
+  `merge-bench` records real identities instead of "unknown".
+- `docs/blog/2026-09-22-memory-benchmark.md` — the launch post: cold/warm
+  protocol, reproducible-by-design, and the real-model matrix being filled in.
+- Leaderboard carries a second deterministic run (starter-template greet family,
+  from a real `bench --dry` execution).
+
 ## [0.2.0] — the agent that learns, measured
 
 ### Added

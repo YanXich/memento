@@ -23,6 +23,7 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
+    "examples",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -52,6 +53,8 @@
     "spec-driven-development",
     "sdd",
     "memory",
+    "mcp",
+    "benchmark",
     "llm",
     "cli",
     "developer-tools"

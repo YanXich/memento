@@ -164,7 +164,8 @@ function dryProvider(): LlmProvider {
 export async function benchTask(opts: BenchOptions): Promise<number> {
   let tasks: BenchTask[];
   try {
-    const raw = JSON.parse(fs.readFileSync(path.resolve(opts.file), "utf8")) as BenchTask[] | { tasks: BenchTask[] };
+    // The tasks file is relative to the workspace root (-C), not the shell cwd.
+    const raw = JSON.parse(fs.readFileSync(path.resolve(opts.root, opts.file), "utf8")) as BenchTask[] | { tasks: BenchTask[] };
     tasks = Array.isArray(raw) ? raw : (raw.tasks ?? []);
   } catch (err) {
     process.stderr.write(pc.red(`cannot read bench tasks: ${(err as Error).message}\n`));
@@ -225,7 +226,12 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
     process.stdout.write(
       JSON.stringify(
         {
-          provider: providerLabel,
+          // Machine-readable ids for the leaderboard merge; providerLabel stays
+          // in the human report only. Explicit --provider/--model flags win;
+          // otherwise the resolved config lives inside each run, so the JSON
+          // degrades to "configured" rather than guessing.
+          provider: opts.dry ? "bench-dry" : opts.provider ?? "configured",
+          model: opts.dry ? DRY_MODEL.id : opts.model ?? "configured",
           root: opts.root,
           dry: Boolean(opts.dry),
           tasks: results,

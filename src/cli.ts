@@ -414,9 +414,10 @@ program
   .command("init")
   .description("scaffold .memento/ in this repository")
   .option(...cwdOption)
+  .option("-p, --provider <id>", "provider for the config stub: deepseek | openai | anthropic | ollama | moonshot")
   .option("--force", "rewrite .memento/config.json")
   .action((opts) => {
-    process.exitCode = initCmd(rootOf(opts), Boolean(opts.force));
+    process.exitCode = initCmd(rootOf(opts), Boolean(opts.force), opts.provider);
   });
 
 program.parseAsync(process.argv).catch((err: unknown) => {

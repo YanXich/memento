@@ -211,7 +211,10 @@ export function resolveLlm(ws: Workspace, providerId?: string, modelId?: string)
   } else {
     return {
       error:
-        "No model configured. Pass --provider/--model, or set them in .memento/config.json (see `memento doctor`).",
+        "No model configured yet.\n\n" +
+        "  memento init      # scaffold .memento/ with a config stub (deepseek by default)\n" +
+        "  memento doctor    # check the wiring\n\n" +
+        'or pass flags directly, e.g.  memento run --provider deepseek --model deepseek-chat "…"',
     };
   }
 

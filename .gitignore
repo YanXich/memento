@@ -9,7 +9,10 @@ coverage/
 
 # Memento runtime artifacts (keep spec/, ignore transient state)
 .memento/sessions/
+.memento/memory/
+.memento/plugins/
 .memento/tmp/
+.memento/config.json
 .memento/config.local.json
 
 # Demo workspace created by scripts/demo.mjs

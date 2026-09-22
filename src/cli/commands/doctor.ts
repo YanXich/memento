@@ -9,6 +9,7 @@ import { createWorkspace, attachPlugins, llmReadiness } from "../workspace.ts";
 import { userConfigPath } from "../../config.ts";
 import { listSessions } from "../../kernel/session.ts";
 import { pluginDirs } from "../../plugins/loader.ts";
+import { BUILTIN_PRESETS } from "../../llm/registry.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { VERSION } from "../../version.ts";
@@ -46,7 +47,10 @@ export async function doctorCmd(root: string): Promise<number> {
     const model = ws.config.model ?? ws.providers.get(wantProvider)?.models[0]?.id ?? "(none)";
     info("model", model);
   } else {
-    info("provider", "not set — pass --provider or set it in config");
+    // No provider means `memento run` cannot start at all — this is a real
+    // problem, not informational: the doctor must not say "everything checks
+    // out" while the agent is unusable.
+    check(false, "provider", "not set — run `memento init`, or pass --provider");
   }
   const available = [...ws.providers.keys()];
   for (const id of available) {
@@ -107,7 +111,17 @@ export async function doctorCmd(root: string): Promise<number> {
  * Spec generation itself is `memento spec init`; this only lays out the tree
  * so the two commands stay single-purpose.
  */
-export function initCmd(root: string, force = false): number {
+export function initCmd(root: string, force = false, providerId?: string): number {
+  const preset = providerId ? BUILTIN_PRESETS.find((p) => p.id === providerId) : undefined;
+  if (providerId && !preset) {
+    process.stderr.write(
+      pc.red(`unknown provider "${providerId}". Built-in: ${BUILTIN_PRESETS.map((p) => p.id).join(", ")}\n`) +
+        pc.dim("custom endpoints go in .memento/config.json as openai-compat providers.\n"),
+    );
+    return 1;
+  }
+  const provider = preset?.id ?? "deepseek";
+  const model = preset?.models[0]?.id ?? "deepseek-chat";
   const dir = path.join(root, ".memento");
   const created: string[] = [];
   for (const sub of ["spec/features", "spec/decisions", "memory", "sessions", "plugins"]) {
@@ -123,8 +137,8 @@ export function initCmd(root: string, force = false): number {
       cfgPath,
       JSON.stringify(
         {
-          provider: "deepseek",
-          model: "deepseek-chat",
+          provider,
+          model,
           autoApprove: ["write", "edit"],
         },
         null,
@@ -139,13 +153,17 @@ export function initCmd(root: string, force = false): number {
   for (const c of created) process.stdout.write(pc.green(`  + ${c}\n`));
   if (created.length === 0) process.stdout.write(pc.dim("  already initialized\n"));
 
+  const keyStep =
+    provider === "ollama"
+      ? "  1. start the local server:  ollama serve          (no API key needed)\n"
+      : `  1. set your API key:      export ${preset?.apiKeyEnv ?? "DEEPSEEK_API_KEY"}=…  (PowerShell: $env:${preset?.apiKeyEnv ?? "DEEPSEEK_API_KEY"}=\"…\")\n`;
   process.stdout.write(
     "\n" +
       pc.dim("next steps:\n") +
-      pc.dim("  1. set your API key:      export DEEPSEEK_API_KEY=…  (PowerShell: $env:DEEPSEEK_API_KEY=\"…\")\n") +
+      pc.dim(keyStep) +
       pc.dim("  2. draft the spec:        memento spec init\n") +
       pc.dim("  3. check the wiring:      memento doctor\n") +
-      pc.dim("  4. run a task:            memento run \"add a --json flag to the CLI\"\n"),
+      pc.dim('  4. run a task:            memento run "add a --json flag to the CLI"\n'),
   );
   gitignoreHint(root);
   return 0;

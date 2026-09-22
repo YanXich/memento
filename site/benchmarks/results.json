@@ -4,7 +4,7 @@
     {
       "submitter": "memento-team",
       "provider": "bench-dry",
-      "model": "deterministic mock",
+      "model": "bench-dry",
       "date": "2026-09-22",
       "dry": true,
       "taskFamily": "web-api hardening (rate-limit, idempotency, logging, cors, cache)",
@@ -12,11 +12,106 @@
       "tokensSavedPct": 44,
       "report": "demo.html",
       "tasks": [
-        { "name": "rate-limit", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 2, "inputTokens": 2500 } },
-        { "name": "idempotency", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } },
-        { "name": "logging", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } },
-        { "name": "cors", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } },
-        { "name": "cache", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } }
+        {
+          "name": "rate-limit",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 2,
+            "inputTokens": 2500
+          }
+        },
+        {
+          "name": "idempotency",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 1,
+            "inputTokens": 1400
+          }
+        },
+        {
+          "name": "logging",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 1,
+            "inputTokens": 1400
+          }
+        },
+        {
+          "name": "cors",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 1,
+            "inputTokens": 1400
+          }
+        },
+        {
+          "name": "cache",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 1,
+            "inputTokens": 1400
+          }
+        }
+      ]
+    },
+    {
+      "submitter": "memento-team",
+      "provider": "bench-dry",
+      "model": "bench-dry",
+      "date": "2026-09-22",
+      "dry": true,
+      "taskFamily": "tasks.json (implement-greet, implement-bye, implement-hello-again)",
+      "turnsSavedPct": 33,
+      "tokensSavedPct": 29,
+      "tasks": [
+        {
+          "name": "implement-greet",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 2,
+            "inputTokens": 2500
+          }
+        },
+        {
+          "name": "implement-bye",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 1,
+            "inputTokens": 1400
+          }
+        },
+        {
+          "name": "implement-hello-again",
+          "cold": {
+            "turns": 2,
+            "inputTokens": 2500
+          },
+          "warm": {
+            "turns": 1,
+            "inputTokens": 1400
+          }
+        }
       ]
     }
   ]
