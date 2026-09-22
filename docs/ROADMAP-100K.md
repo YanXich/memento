@@ -30,14 +30,14 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **113/113 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + 记忆进化轨迹）· 构建成功。
+**验证状态**：typecheck 干净 · **134/134 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
 | 编号 | 问题 | 状态 |
 |------|------|----------|
 | M8 | ToolContext progress/approve 死通道（工具拿不到真实进度/审批） | ✅ 已修（progress 带工具名入事件总线 tool_progress；approve 转发循环真实策略，无策略默认拒绝；子 agent 进度转发到父 UI）+ 回归测试 |
-| M12 | web server 同步读 O(2×N) | ⬜ 未做（P2） |
+| M12 | web server 同步读 O(2×N) | ✅ 已修（单遍 scanSession + stamp 缓存/ETag 304 增量读）+ 回归测试 |
 
 Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一次，含 429/5xx/中流断线，回归测试 kernel.test.ts）、M5（CJK token 双权重估算）、M6（lessons.jsonl O_APPEND 单行原子性 + 并发契约）、M10（approver 响应 abort signal）、M11（插件 API 形状收紧——BeforeLlmPatch 仅可改 system，无法伪造消息角色）、M13（插件加载失败显式警告）。
 
@@ -62,7 +62,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 自建基准 harness 已交付：`memento bench tasks.json` 把一族相似任务冷/热对比跑（冷=全新副本零记忆，热=召回经验），
   输出学习曲线与省下的轮数/token；`--dry` 确定性零网络 provider 让 harness 自身可测、可演示、可进 CI。
 - ⬜ 跑真实数据：用同一族任务在 deepseek 等真实模型上跑出冷/热对比数字（第二次解决同类问题少用多少 token）。
-- ⬜ 输出 leaderboard 页面（静态，GitHub Pages 可托管）→ 长期 SEO 流量 → 吸引实验者 → 传播。
+- ✅ leaderboard 页面已交付：`site/benchmarks/index.html`（静态、GitHub Pages 可托管、fetch results.json 渲染、可点击学习曲线 + 提交指南，`npm run merge-bench` 合并提交）→ 长期 SEO 流量 → 吸引实验者 → 传播。
 - 这是别的 agent 做不了的内容，因为记忆是 Memento 独有的硬功能。
 
 ### 杠杆 2：MCP 双通道（生态入场券）
@@ -90,7 +90,8 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 交互式 plan 模式：`memento plan <task>` 先出计划，用户确认后执行（-y 直批）
 - ✅ 断点续跑：`memento resume <session>` 把完整转录重放给模型，继续写入**同一个**会话日志，verify → reflect → commit hint 重跑（复用了 run/resume 共享的 hooks + aftermath 模块）
 - ✅ 记忆进化可视化：web 工作台 Memory 页为每条 lesson 绘制置信度进化 sparkline + 事件时间线（created/reinforced/contradicted/retired），`?evol` deep link 一键展开；compact 保留每 lesson 最近 8 条轨迹（COMPACT_HISTORY_KEEP），会话详情页带 `memento resume` 复制提示
-- ⬜ M12 web server 增量读（顺延）
+- ✅ M12 web server 增量读：单遍 scanSession + stamp 缓存/ETag 304
+- ✅ 交互式 chat REPL：`memento chat` 同循环交互（每轮记忆召回、内联审批、退出反射、--session 续接）
 - 验收：e2e 测试覆盖 repo map 注入与 plan 批准链路 ✅
 
 ### Phase 3 — 生态（✅ 已完成）
@@ -108,7 +109,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
 - ⬜ 落地页（静态 + GitHub Pages）：hero 一行定位语 + 记忆基准图表 + 30 秒 demo
 - ⬜ 传播：HN/Reddit/V2EX 发帖节奏、benchmark 博客、模板仓库（memento-starter）
-- ⬜ 记忆基准（杠杆 1）真实数据 + leaderboard 页面（harness `memento bench` 已交付 ✅）
+- ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑
 
 ## 4. 取舍原则（每步都要问）
 
@@ -120,8 +121,8 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 
 ## 5. 验收路线图（里程碑）
 
-- **M1（已完成）**：Phase 1-3 全绿（113/113 测试）→ 待发 `v0.2.0`（"安全/生态/品牌大修"变更日志）
-- **M2（进行中）**：落地页 + 记忆基准初版数据 → 第一篇 benchmark 博客
+- **M1（已完成）**：Phase 1-3 全绿（134/134 测试）→ 待发 `v0.2.0`（"安全/生态/品牌大修"变更日志）
+- **M2（进行中）**：落地页 + 记忆基准真实数据 → 第一篇 benchmark 博客（leaderboard 页面已就绪）
 - **M3（一个月）**：MCP 双通道文章 + 落地页 → HN 首发
 - **M4（持续）**：插件生态 + 社区运营 → 冲 10k → 冲 100k
 

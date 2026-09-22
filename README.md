@@ -126,7 +126,8 @@ Memento speaks the ecosystem's language, in both directions:
 - **Undo** — every `write` / `edit` / `apply_patch` snapshots the previous state to `.memento/undo/`. `memento undo` rolls back the last write batch, step by step. Crash containment for the file system.
 - **Plan first** — `memento plan` drafts a Plan/Act split before touching anything. Approve the plan, and the agent executes it step by step; decline, and nothing changes.
 - **Resume** — `memento resume s_…` continues an interrupted run: the exact transcript is replayed into the model and the loop goes on in the SAME session log, so the audit trail stays one story (verify → reflect → commit hint run again).
-- **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos. `--report report.html` writes a brand-styled standalone report you can commit to GitHub Pages — [sample report](site/benchmarks/demo.html).
+- **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos. `--report report.html` writes a brand-styled standalone report you can commit to GitHub Pages — [sample report](site/benchmarks/demo.html), [public leaderboard](site/benchmarks/index.html) (submit with `npm run merge-bench`).
+- **Interactive chat** — `memento chat` is a REPL over the same loop: every exchange is logged to one session, tool approvals are asked inline, memory is recalled per message (a chat jumping topics gets the right lessons each time), and one reflection pass at exit distils the whole conversation into memory. `--session <id>` picks a conversation back up.
 - **Agent chain** — the built-in `subagent` tool dispatches a read-only explorer for one question: it reads/greps the repo in its own mini-loop and returns a condensed answer, so long file dumps never bloat your context. Sub-sessions get their own JSONL transcript, linked from the parent log; explorers can't spawn explorers (no recursion, no writes).
 - **Memory as code** — `memento memory export` writes every lesson (confidence, evidence, history) to a JSON file you can commit; `memento memory import` brings the team's memory into a fresh clone. Idempotent — the same id or the same claim is never duplicated — and every import leaves a provenance marker in the lesson's evidence.
 
@@ -218,6 +219,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento remember <text>` | record a lesson by hand — it joins the same confidence machinery |
 | `memento sessions` / `show <id>` / `resume <id>` | session history, transcripts, and interruption recovery (any unique prefix works) |
 | `memento bench <tasks.json>` | cold vs warm runs over a task family — the memory effect, measured (`--dry`, `--json`, `--no-cold`, `--keep`, `--report <path>`) |
+| `memento chat` | interactive session — one persistent log, per-message memory recall, inline approvals (`--session <id>` continues, `-y`, `--max-turns`, `--temperature`) |
 | `memento memory export` / `import <file>` | team memory as code — commit an export, teammates import it (`--out`, `--active-only`) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
 | `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
@@ -254,7 +256,7 @@ Built-in presets: **deepseek**, **openai**, **anthropic**, **ollama**, **moonsho
 - **Auditable memory.** Confidence isn't a vibe — it's arithmetic you can read, and every change carries the evidence that caused it.
 - **Reversible extension.** Every registration returns a disposer. `memento doctor` shows exactly what each plugin contributed.
 
-**Non-goals:** chat UI, autonomous multi-agent swarms, a hosted service. Memento is a composable engine and a CLI. The `memento-agent` package also exports its full API (kernel, spec, memory, plugins) if you want to embed it.
+**Non-goals:** a graphical chat UI, autonomous multi-agent swarms, a hosted service. Memento is a composable engine and a CLI — the interactive `memento chat` REPL is terminal-first, in the same spirit. The `memento-agent` package also exports its full API (kernel, spec, memory, plugins) if you want to embed it.
 
 The agent chain is deliberately one level deep: the built-in `subagent` tool dispatches read-only explorers, and explorers cannot dispatch explorers — trees stay shallow, transcripts stay auditable.
 
