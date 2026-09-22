@@ -241,6 +241,13 @@ Write the full proposed content for the target spec file. Requirements:
   if (!parsed) return null;
   if (!parsed.needsSpecChange) return null;
   if (!parsed.target || !parsed.content) return null;
+  // The spec gate may only ever touch spec files. A model suggesting a
+  // target outside .memento/spec/ (README.md, package.json, a source file…)
+  // is rejected outright — the gate must never become a way to edit
+  // arbitrary files through user approval. Same rule as reflect's
+  // sanitizeSuggestions.
+  if (!parsed.target.startsWith(".memento/spec/")) return null;
+  if (parsed.content.length > 20_000) return null;
   const action = parsed.action ?? (bundle.all.some((f) => f.relPath === parsed.target) ? "update" : "create");
   return {
     target: parsed.target,

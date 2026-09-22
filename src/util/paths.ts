@@ -160,10 +160,20 @@ export const DEFAULT_IGNORE = new Set([
   "target",
   ".idea",
   ".vscode",
+  // Memento's own state — the agent's memory, session logs and undo
+  // snapshots must never pollute grep/glob results.
+  ".memento",
+  // Bench sandboxes created by `memento bench`.
+  ".demo",
 ]);
 
 /** Directories that mutating tools must never touch (unless explicitly allowed). */
 export const PROTECTED_DIRS = new Set([".git", "node_modules"]);
 
 /** File names that mutating tools must never write (unless explicitly allowed). */
-export const PROTECTED_FILES = new Set([".env", ".env.local", ".env.production", "id_rsa", "id_ed25519"]);
+export const PROTECTED_FILES = new Set([
+  ".env", ".env.local", ".env.production", ".env.development", ".env.test", ".env.example",
+  "id_rsa", "id_ed25519", "id_rsa.pub", "id_ed25519.pub", "id_dsa", "id_ecdsa",
+  ".npmrc", ".pypirc", ".netrc",
+  "credentials", "credentials.json", "credentials.yml", "credentials.yaml",
+]);

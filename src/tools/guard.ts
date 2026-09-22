@@ -127,6 +127,17 @@ export function classifyCommand(command: string): DangerVerdict {
   return { dangerous: false, mutating: false };
 }
 
+/**
+ * Secret-file matching — exact known names plus common variants
+ * (.env.*, *.pem, *.key, id_* keys). Fail-safe: when in doubt, block.
+ */
+function isSecretFileName(base: string): boolean {
+  if (PROTECTED_FILES.has(base)) return true;
+  if (base.startsWith(".env")) return true;
+  if (base.endsWith(".pem") || base.endsWith(".key")) return true;
+  return /^id_(rsa|ed25519|dsa|ecdsa)(\.pub)?$/.test(base);
+}
+
 /** Paths (relative to workspace root) that mutating tools refuse to touch. */
 export function guardWritePath(root: string, absPath: string): { allowed: boolean; reason?: string } {
   if (!isInside(root, absPath)) {
@@ -140,7 +151,7 @@ export function guardWritePath(root: string, absPath: string): { allowed: boolea
     }
   }
   const base = parts[parts.length - 1] ?? "";
-  if (PROTECTED_FILES.has(base)) {
+  if (isSecretFileName(base)) {
     return { allowed: false, reason: `writing to ${base} is protected (secrets)` };
   }
   if (base === "package-lock.json" || base === "pnpm-lock.yaml") {

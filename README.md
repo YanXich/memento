@@ -157,7 +157,7 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 164 tests
+npm run check      # typecheck + 184 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```

@@ -68,6 +68,7 @@ export type StreamEvent =
   | { type: "thinking_delta"; text: string }
   | { type: "toolcall_start"; id: string; name: string }
   | { type: "toolcall_delta"; id: string; argsDelta: string }
+  | { type: "toolcall_name_delta"; id: string; nameDelta: string }
   | { type: "toolcall_end"; id: string }
   | { type: "done"; stopReason: StopReason; usage: Usage }
   | { type: "error"; error: string; retryable: boolean };

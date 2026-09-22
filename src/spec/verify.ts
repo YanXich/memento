@@ -67,7 +67,8 @@ const commandChecker: SpecChecker = {
       const text = file.content;
       for (const match of text.matchAll(commandRe)) {
         const script = match[1]!;
-        if (script === "run" || script === "test" && "test" in scripts) continue;
+        if (script === "run") continue;
+        if (script === "test" && "test" in scripts) continue;
         // `pnpm install` / `pnpm build` where build exists is fine; only flag unknown script names.
         if (["install", "i", "add", "remove", "exec", "dlx", "why", "list", "up", "update"].includes(script)) continue;
         if (!(script in scripts)) {

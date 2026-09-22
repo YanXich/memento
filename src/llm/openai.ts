@@ -189,15 +189,26 @@ export function createOpenAiCompatProvider(opts: OpenAiCompatOptions): LlmProvid
               state = { id: call.id ?? `call_${idx}`, name: "", args: "", started: false };
               toolCalls.set(idx, state);
             }
-            if (call.id) state.id = call.id;
+            if (call.id && call.id !== state.id) state.id = call.id;
             if (call.function?.name) {
               state.name += call.function.name;
-              if (!state.started) {
-                state.started = true;
-                yield { type: "toolcall_start", id: state.id, name: state.name };
+              // Name fragments after the start? Some gateways chunk the name —
+              // forward them so the kernel can repair its copy.
+              if (state.started) {
+                yield { type: "toolcall_name_delta", id: state.id, nameDelta: call.function.name };
               }
             }
             if (typeof call.function?.arguments === "string" && call.function.arguments.length > 0) {
+              if (!state.started) {
+                // Defer the start until the first args fragment: by then every
+                // real dialect has delivered the full id and name. Starting
+                // earlier would announce a fallback id or a truncated name
+                // that later fragments invalidate — and the kernel keys its
+                // pending-call map on that id, so a mismatch silently drops
+                // every args delta.
+                state.started = true;
+                yield { type: "toolcall_start", id: state.id, name: state.name };
+              }
               state.args += call.function.arguments;
               yield { type: "toolcall_delta", id: state.id, argsDelta: call.function.arguments };
             }
@@ -213,6 +224,9 @@ export function createOpenAiCompatProvider(opts: OpenAiCompatOptions): LlmProvid
       }
 
       for (const [, state] of toolCalls) {
+        // A tool call with no args fragments (rare, but legal) never emitted
+        // its start — announce it now so start/end pairing holds for the kernel.
+        if (!state.started) yield { type: "toolcall_start", id: state.id, name: state.name };
         yield { type: "toolcall_end", id: state.id };
       }
 

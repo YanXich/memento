@@ -261,6 +261,15 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
               if (state) state.argsJson += event.argsDelta;
               break;
             }
+            case "toolcall_name_delta": {
+              // Some gateways chunk the tool name across fragments; the
+              // provider already announced a start, so repair the name in
+              // place — executing a half-written tool name would fail
+              // "unknown tool" for a call the model clearly intended.
+              const state = pendingCalls.get(event.id);
+              if (state) state.name += event.nameDelta;
+              break;
+            }
             case "done":
               stopReason = event.stopReason;
               usage = event.usage;

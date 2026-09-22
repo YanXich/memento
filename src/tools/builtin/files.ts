@@ -41,6 +41,12 @@ export const readTool: Tool = {
     } catch {
       return { output: `File not found: ${args.path}`, isError: true };
     }
+    if (raw.includes("\u0000")) {
+      return {
+        output: `Binary file (NUL bytes detected): ${args.path} — inspect it with shell tools instead.`,
+        isError: true,
+      };
+    }
 
     const allLines = raw.split("\n");
     const offset = args.offset ?? 1;
@@ -280,7 +286,9 @@ function findLoose(haystack: string, needle: string): { start: number; end: numb
     .split("\n")
     .map((line) => {
       const escaped = line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return escaped.replace(/\s+/g, "\\s+");
+      // Tolerate only spaces/tabs within a line — `\s` would also swallow
+      // newlines and let one needle line match across unrelated source lines.
+      return escaped.replace(/[ \t]+/g, "[ \\t]+");
     })
     .join("\\s*\\n\\s*");
   let re: RegExp;
@@ -296,6 +304,17 @@ function findLoose(haystack: string, needle: string): { start: number; end: numb
     if (m[0].length === 0) re.lastIndex++; // guard against zero-width loops
   }
   return out;
+}
+
+/**
+ * Heuristic rejection of catastrophic-backtracking shapes — a quantified
+ * group containing a quantifier ((a+)+) or alternation ((a|b)*) can hang
+ * the process on long single-line files. Fail-safe: refuse, don't run.
+ */
+function isReDoSSuspect(pattern: string): boolean {
+  if (/\([^()]*[*+][^()]*\)[*+{]/s.test(pattern)) return true;
+  if (/\([^()]*\|[^()]*\)[*+{]/s.test(pattern)) return true;
+  return false;
 }
 
 export const lsTool: Tool = {
@@ -346,6 +365,16 @@ export const grepTool: Tool = {
     args: { pattern: string; path?: string; glob?: string; case_sensitive?: boolean; max_results?: number },
     ctx: ToolContext,
   ) {
+    if (args.pattern.length > 2000) {
+      return { output: `Pattern too long (${args.pattern.length} chars); keep it under 2000.`, isError: true };
+    }
+    if (isReDoSSuspect(args.pattern)) {
+      return {
+        output:
+          "Pattern rejected: nested quantifiers like (a+)+ or (a|b)* can hang the search on long lines (catastrophic backtracking). Rewrite it without quantifying a group that contains a quantifier or alternation.",
+        isError: true,
+      };
+    }
     let regex: RegExp;
     try {
       regex = new RegExp(args.pattern, args.case_sensitive ? "" : "i");

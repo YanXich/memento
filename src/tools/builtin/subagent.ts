@@ -62,14 +62,22 @@ export const subagentTool: Tool = {
     }
 
     const sessionsDir = path.join(ctx.cwd, ".memento", "sessions");
-    const subSession = SessionLog.create(sessionsDir, {
-      cwd: ctx.cwd,
-      model: model.id,
-      provider: provider.id,
-      task: `subagent: ${a.purpose}`,
-      mementoVersion: VERSION,
-    });
-    subSession.appendNote(`parent question: ${a.question}`, "system");
+    let subSession: SessionLog;
+    try {
+      subSession = SessionLog.create(sessionsDir, {
+        cwd: ctx.cwd,
+        model: model.id,
+        provider: provider.id,
+        task: `subagent: ${a.purpose}`,
+        mementoVersion: VERSION,
+      });
+      subSession.appendNote(`parent question: ${a.question}`, "system");
+    } catch (err) {
+      return {
+        output: `subagent failed to start: ${(err as Error).message}`,
+        isError: true,
+      };
+    }
     ctx.progress(`subagent exploring: ${a.purpose}`);
 
     try {

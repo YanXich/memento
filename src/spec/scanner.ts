@@ -18,7 +18,7 @@ const LANG_BY_EXT: Record<string, string> = {
 
 const MANIFEST_FILES = [
   "package.json", "pyproject.toml", "requirements.txt", "go.mod", "Cargo.toml",
-  "pom.xml", "build.gradle", "Gemfile", "composer.json", "*.csproj",
+  "pom.xml", "build.gradle", "Gemfile", "composer.json",
 ];
 
 export function scanRepo(root: string): RepoScan {
@@ -94,7 +94,6 @@ export function scanRepo(root: string): RepoScan {
 
 function readManifest(root: string): string | null {
   for (const name of MANIFEST_FILES) {
-    if (name.includes("*")) continue;
     const abs = path.join(root, name);
     try {
       const body = fs.readFileSync(abs, "utf8");

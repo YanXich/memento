@@ -124,6 +124,45 @@ it("caps each lesson's trail at COMPACT_HISTORY_KEEP records", () => {
     const store = LessonStore.load(dir);
     expect(store.compact()).toEqual({ before: 0, after: 0 });
   });
+
+  // --- Concurrency: the file lock turns read-modify-append into a critical
+  // section, so parallel agents (separate store instances = separate
+  // processes) can neither lose increments nor lose whole lessons. ---
+
+  it("parallel agents reinforcing the same lesson never lose an increment", () => {
+    const storeA = LessonStore.load(dir);
+    const lesson = storeA.add({ text: "CI runs on every push", kind: "constraint", evidence: "e", sessionId: "s_1" });
+    // A second "process" (separate instance, stale in-memory fold) reinforces.
+    const storeB = LessonStore.load(dir);
+    storeB.reinforce(lesson.id, "confirmed by B", "s_2");
+    // A reinforces too — mutate() re-reads the fold from disk under the lock,
+    // so B's +0.15 is not lost to a stale read.
+    storeA.reinforce(lesson.id, "confirmed by A", "s_3");
+    expect(storeA.get(lesson.id)!.confidence).toBeCloseTo(CONFIDENCE_START + 0.3);
+    expect(LessonStore.load(dir).get(lesson.id)!.reinforced).toBe(2);
+  });
+
+  it("two agents adding lessons concurrently lose nothing", () => {
+    const storeA = LessonStore.load(dir);
+    const storeB = LessonStore.load(dir);
+    storeA.add({ text: "Migrations run with pnpm db:migrate", kind: "constraint", evidence: "e", sessionId: "s_a" });
+    storeB.add({ text: "The router is file-based", kind: "discovery", evidence: "e", sessionId: "s_b" });
+    storeA.add({ text: "End-to-end tests need a browser", kind: "failure", evidence: "e", sessionId: "s_a" });
+    expect(LessonStore.load(dir).active()).toHaveLength(3);
+  });
+
+  it("a live peer's lock makes mutations wait, then fail cleanly", () => {
+    // The vitest parent process is alive and is not us → legitimately held.
+    fs.mkdirSync(path.join(dir, ".memento", "memory"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, ".memento", "memory", "lessons.jsonl.lock"),
+      JSON.stringify({ pid: process.ppid, startedAt: Date.now() }),
+    );
+    const store = LessonStore.load(dir);
+    expect(() =>
+      store.add({ text: "Claims need evidence", kind: "discovery", evidence: "e", sessionId: "s_1" }),
+    ).toThrow(/another memento process/);
+  });
 });
 
 describe("recallLessons", () => {

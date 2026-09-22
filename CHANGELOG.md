@@ -32,6 +32,31 @@ All notable changes to memento are documented here. Format follows
   large repos full of assets/docs can no longer starve source files out of the
   map. Source reads stay bounded (3× the selection cap) so monster monorepos
   remain cheap.
+- `tools.files` grep refuses pathological regexes (nested quantifiers such as
+  `(a+)+`) and over-long patterns before they can hang the process, and
+  `find_loose` no longer lets whitespace matches cross newlines, which silently
+  widened replacement regions.
+- `read` detects binary files (NUL byte) and fails cleanly instead of dumping
+  them into context.
+- `grep`/`glob`/`walk` skip `.memento/` and `.demo/` so the agent never reads
+  its own memories or demo data as project source; secret-file protection now
+  catches `.env*` variants, `*.pem`/`*.key`, and bare `id_rsa`/`id_ed25519`/
+  `id_dsa`/`id_ecdsa` keys.
+- `subagent` reports a clean tool error instead of leaking an exception when
+  its session log cannot be created (e.g. a stale `.memento` file).
+- Lesson store hardening: `compact` could lose appends written during the
+  rename window and concurrent processes could interleave read-modify-write
+  on `lessons.jsonl` (lost `reinforce`/`contradict` updates). Both now run
+  under a cross-process file lock shared with the session writer; on Windows
+  the rename retries through EPERM.
+- OpenAI-compatible gateways (DeepSeek/Qwen) that fragment tool-call names,
+  send call ids late, or emit argument-less calls no longer produce unnamed
+  or dropped tool calls: the parser aggregates name fragments, defers the
+  start event until the first arguments chunk, and flushes argument-less
+  calls as empty start/end pairs.
+- `spec delta` proposals targeting anything outside `.memento/spec/` (or
+  exceeding 20 KB) are rejected before approval — the gate can no longer be
+  talked into approving edits to arbitrary project files.
 
 ### Added
 
@@ -52,6 +77,10 @@ All notable changes to memento are documented here. Format follows
   what remains manual.
 - Leaderboard carries a second deterministic run (starter-template greet family,
   from a real `bench --dry` execution).
+- `src/util/lock.ts` — a shared cross-process file lock powering both session
+  logs and the lesson store, with pid-liveness stale-lock stealing.
+- The stream parser emits `toolcall_name_delta` so live tool-call renames
+  surface in the workbench UI.
 
 ## [0.2.0] — the agent that learns, measured
 

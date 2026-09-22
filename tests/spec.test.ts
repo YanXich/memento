@@ -11,7 +11,8 @@ import { loadSpecBundle, nextDecisionNumber, specStatus, writeSpec } from "../sr
 import { scanRepo } from "../src/spec/scanner.ts";
 import { verifySpec } from "../src/spec/verify.ts";
 import { recallSpec } from "../src/spec/recall.ts";
-import { decisionPath } from "../src/spec/generator.ts";
+import { decisionPath, proposeSpecDelta } from "../src/spec/generator.ts";
+import { createMockProvider, MOCK_MODEL } from "./support/mock-provider.ts";
 
 let dir: string;
 
@@ -128,5 +129,41 @@ describe("recallSpec", () => {
     const context = recallSpec(loadSpecBundle(dir), "zzz unrelated topic qqq");
     expect(context).toContain("constitution.md");
     expect(context).not.toContain("billing.md");
+  });
+});
+
+describe("proposeSpecDelta target allowlist", () => {
+  it("rejects a model-suggested target outside .memento/spec/ (G1)", async () => {
+    const provider = createMockProvider([
+      {
+        text: JSON.stringify({
+          needsSpecChange: true,
+          target: "README.md",
+          rationale: "spec should live in the readme",
+          action: "update",
+          content: "# hijacked",
+        }),
+      },
+    ]);
+    const bundle = loadSpecBundle(dir);
+    const delta = await proposeSpecDelta({ provider, model: MOCK_MODEL }, "any task", bundle, "");
+    expect(delta).toBeNull(); // the gate must never edit arbitrary files
+  });
+
+  it("accepts a target inside .memento/spec/ and infers the action", async () => {
+    const provider = createMockProvider([
+      {
+        text: JSON.stringify({
+          needsSpecChange: true,
+          target: ".memento/spec/features/auth.md",
+          rationale: "new capability",
+          content: "# Auth\n\n## Behavior\n- cookie login\n",
+        }),
+      },
+    ]);
+    const bundle = loadSpecBundle(dir);
+    const delta = await proposeSpecDelta({ provider, model: MOCK_MODEL }, "add cookie login", bundle, "");
+    expect(delta?.target).toBe(".memento/spec/features/auth.md");
+    expect(delta?.action).toBe("create");
   });
 });

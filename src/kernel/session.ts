@@ -10,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Message, Usage } from "../llm/types.ts";
 import { appendJsonl, ensureDir, readJsonl } from "../util/paths.ts";
+import { acquireFileLock, releaseFileLock } from "../util/lock.ts";
 import { sessionId as newSessionId } from "../util/ids.ts";
 
 export type SessionEntry =
@@ -149,67 +150,21 @@ export class SessionLog {
  * that a live process is still writing: two seq counters would interleave
  * and the log would stop being a faithful transcript.
  *
- * Acquisition is atomic (`wx` = create-if-absent). A lock left behind by a
- * crashed process is stolen — the pid inside is checked for liveness first,
- * so a legitimately running writer is never evicted. Reads (loadSession /
- * listSessions) never take the lock: append-only JSONL is safe to read
- * mid-write, partial trailing lines are skipped by design.
+ * The lock itself lives in `util/lock.ts` (shared with the lesson store):
+ * acquisition is atomic (`wx` = create-if-absent), a lock left behind by a
+ * crashed process is stolen (pid liveness is checked first, so a legitimately
+ * running writer is never evicted), and release never unlinks a peer's lock.
+ * Reads (loadSession / listSessions) never take the lock: append-only JSONL
+ * is safe to read mid-write, partial trailing lines are skipped by design.
  */
-function lockPathFor(file: string): string {
-  return `${file}.lock`;
-}
-
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function acquireLock(log: SessionLog): void {
-  const lockFile = lockPathFor(log.file);
-  const own = { pid: process.pid, startedAt: Date.now() };
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      fs.writeFileSync(lockFile, JSON.stringify(own), { flag: "wx" });
-      log.lockFile = lockFile;
-      return;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
-      let owner: { pid?: unknown } | null = null;
-      try {
-        owner = JSON.parse(fs.readFileSync(lockFile, "utf8")) as { pid?: unknown };
-      } catch {
-        /* corrupt lock */
-      }
-      const pid = typeof owner?.pid === "number" ? owner.pid : -1;
-      if (pid !== process.pid && pidAlive(pid)) {
-        throw new Error(
-          `session is being written by another memento process (pid ${pid}) — wait for it to finish or resume it afterwards`,
-        );
-      }
-      // Stale (dead pid, our own re-entry, or corrupt) — steal it.
-      try {
-        fs.rmSync(lockFile, { force: true });
-      } catch {
-        /* raced with another stealer — retry once */
-      }
-    }
-  }
-  throw new Error(`could not acquire session lock: ${lockFile}`);
+  acquireFileLock(log.file);
+  log.lockFile = `${log.file}.lock`;
 }
 
 function releaseLock(log: SessionLog): void {
   if (!log.lockFile) return;
-  try {
-    const own = JSON.parse(fs.readFileSync(log.lockFile, "utf8")) as { pid?: unknown };
-    // Never unlink a lock that a peer process already owns.
-    if (own.pid === process.pid) fs.rmSync(log.lockFile, { force: true });
-  } catch {
-    /* lock already gone */
-  }
+  releaseFileLock(log.file, process.pid);
   log.lockFile = null;
 }
 
