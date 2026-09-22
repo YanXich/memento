@@ -10,7 +10,7 @@ import { planTask } from "./cli/commands/plan.ts";
 import { resumeTask } from "./cli/commands/resume.ts";
 import { benchTask } from "./cli/commands/bench.ts";
 import { specDecisionCmd, specInit, specShowCmd, specStatusCmd, specVerifyCmd } from "./cli/commands/spec.ts";
-import { lessonsCmd, rememberCmd } from "./cli/commands/memory.ts";
+import { lessonsCmd, memoryExportCmd, memoryImportCmd, rememberCmd } from "./cli/commands/memory.ts";
 import { sessionShowCmd, sessionsCmd } from "./cli/commands/sessions.ts";
 import { doctorCmd, initCmd } from "./cli/commands/doctor.ts";
 import { webCmd } from "./cli/commands/web.ts";
@@ -211,6 +211,31 @@ program
       ...(opts.evidence ? { evidence: opts.evidence } : {}),
       compact: Boolean(opts.compact),
     });
+  });
+
+const memory = program.command("memory").description("memory as code — export and import lessons (team memory)");
+
+memory
+  .command("export")
+  .description("export lessons as JSON — commit it, share it with the team")
+  .option(...cwdOption)
+  .option("--out <path>", "write to a file instead of stdout")
+  .option("--active-only", "skip retired lessons")
+  .action((opts) => {
+    process.exitCode = memoryExportCmd({
+      root: rootOf(opts),
+      ...(opts.out ? { out: opts.out } : {}),
+      activeOnly: Boolean(opts.activeOnly),
+    });
+  });
+
+memory
+  .command("import")
+  .description("import lessons from a JSON export — the team's memory becomes yours")
+  .argument("<file>", "a memento memory export (JSON)")
+  .option(...cwdOption)
+  .action((file: string, opts) => {
+    process.exitCode = memoryImportCmd({ root: rootOf(opts), file });
   });
 
 program

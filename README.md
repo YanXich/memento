@@ -128,6 +128,7 @@ Memento speaks the ecosystem's language, in both directions:
 - **Resume** — `memento resume s_…` continues an interrupted run: the exact transcript is replayed into the model and the loop goes on in the SAME session log, so the audit trail stays one story (verify → reflect → commit hint run again).
 - **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos. `--report report.html` writes a brand-styled standalone report you can commit to GitHub Pages — [sample report](site/benchmarks/demo.html).
 - **Agent chain** — the built-in `subagent` tool dispatches a read-only explorer for one question: it reads/greps the repo in its own mini-loop and returns a condensed answer, so long file dumps never bloat your context. Sub-sessions get their own JSONL transcript, linked from the parent log; explorers can't spawn explorers (no recursion, no writes).
+- **Memory as code** — `memento memory export` writes every lesson (confidence, evidence, history) to a JSON file you can commit; `memento memory import` brings the team's memory into a fresh clone. Idempotent — the same id or the same claim is never duplicated — and every import leaves a provenance marker in the lesson's evidence.
 
 ---
 
@@ -217,6 +218,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento remember <text>` | record a lesson by hand — it joins the same confidence machinery |
 | `memento sessions` / `show <id>` / `resume <id>` | session history, transcripts, and interruption recovery (any unique prefix works) |
 | `memento bench <tasks.json>` | cold vs warm runs over a task family — the memory effect, measured (`--dry`, `--json`, `--no-cold`, `--keep`, `--report <path>`) |
+| `memento memory export` / `import <file>` | team memory as code — commit an export, teammates import it (`--out`, `--active-only`) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
 | `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
 

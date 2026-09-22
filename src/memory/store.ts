@@ -125,6 +125,31 @@ export class LessonStore {
     return this.lessons.get(id);
   }
 
+  /**
+   * Import a lesson from an export (team memory). The claim keeps its
+   * confidence — someone else verified it — but the evidence trail gains an
+   * `imported:` marker so the audit log stays honest about provenance.
+   *
+   * Returns why a lesson was skipped: same id, or the same claim already
+   * present under a different id (text match after trimming).
+   */
+  importLesson(lesson: Lesson, source: string): "imported" | "skipped-id" | "skipped-text" {
+    if (this.lessons.has(lesson.id)) return "skipped-id";
+    const text = lesson.text.trim().toLowerCase();
+    for (const existing of this.lessons.values()) {
+      if (existing.text.trim().toLowerCase() === text) return "skipped-text";
+    }
+    const imported: Lesson = {
+      ...lesson,
+      text: lesson.text.trim(),
+      confidence: Math.min(1, Math.max(0, lesson.confidence)),
+      evidence: cap([...lesson.evidence, `imported:${source}`], 12),
+      lastSeen: Date.now(),
+    };
+    this.persist("upsert", imported);
+    return "imported";
+  }
+
   all(): Lesson[] {
     return [...this.lessons.values()];
   }

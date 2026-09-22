@@ -1,13 +1,20 @@
 /**
- * `memento remember` / `memento lessons` — memory as a first-class artifact.
+ * `memento remember` / `memento lessons` / `memento memory export|import` —
+ * memory as a first-class artifact.
  *
  * Lessons live in `.memento/memory/lessons.jsonl`, append-only and reviewable
  * in a diff. Confidence is never edited in place: reinforce/contradict append
  * new records, so the history of belief is preserved.
+ *
+ * Export/import make memory a team artifact: export to JSON, commit it next
+ * to the repo, and every teammate's agent imports what the team already
+ * learned. Memory as code.
  */
+import fs from "node:fs";
+import path from "node:path";
 import pc from "picocolors";
 import { createWorkspace } from "../workspace.ts";
-import type { LessonKind } from "../../memory/types.ts";
+import type { Lesson, LessonKind } from "../../memory/types.ts";
 import { oneLine } from "../../util/text.ts";
 
 const KINDS: LessonKind[] = ["constraint", "pattern", "failure", "preference", "discovery"];
@@ -121,4 +128,102 @@ export function lessonsCmd(opts: LessonsOptions): number {
 function notFound(id: string): number {
   process.stderr.write(pc.red(`no lesson with id ${id}\n`));
   return 1;
+}
+
+/* ---------------------------------------------------------------- export */
+
+export interface MemoryExportOptions {
+  root: string;
+  out?: string;
+  activeOnly?: boolean;
+}
+
+export function memoryExportCmd(opts: MemoryExportOptions): number {
+  const ws = createWorkspace(opts.root);
+  const lessons = opts.activeOnly ? ws.lessons.active() : ws.lessons.all();
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    lessons,
+  };
+  const json = JSON.stringify(payload, null, 2) + "\n";
+  if (opts.out) {
+    const target = path.resolve(opts.out);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, json, "utf8");
+    process.stdout.write(
+      pc.green("✓ exported memory") + pc.dim(` — ${lessons.length} lesson(s) → ${opts.out}\n`) +
+        pc.dim("  commit it next to the repo; teammates import it with `memento memory import <file>`\n"),
+    );
+  } else {
+    process.stdout.write(json);
+  }
+  return 0;
+}
+
+/* ---------------------------------------------------------------- import */
+
+export interface MemoryImportOptions {
+  root: string;
+  file: string;
+}
+
+const KINDS_SET = new Set<LessonKind>(["constraint", "pattern", "failure", "preference", "discovery"]);
+
+/** Shape check — an import must never inject junk into the memory log. */
+function isLessonShape(v: unknown): v is Lesson {
+  if (typeof v !== "object" || v === null) return false;
+  const l = v as Record<string, unknown>;
+  return (
+    typeof l.id === "string" &&
+    l.id.length > 0 &&
+    typeof l.text === "string" &&
+    l.text.trim().length > 0 &&
+    KINDS_SET.has(l.kind as LessonKind) &&
+    typeof l.confidence === "number" &&
+    Number.isFinite(l.confidence) &&
+    Array.isArray(l.evidence)
+  );
+}
+
+export function memoryImportCmd(opts: MemoryImportOptions): number {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(fs.readFileSync(path.resolve(opts.file), "utf8"));
+  } catch (err) {
+    process.stderr.write(pc.red(`cannot read memory export: ${(err as Error).message}\n`));
+    return 1;
+  }
+  const list = Array.isArray(raw) ? raw : (raw as { lessons?: unknown[] } | null)?.lessons;
+  if (!Array.isArray(list)) {
+    process.stderr.write(pc.red(`not a memory export — expected {"lessons":[…]}\n`));
+    return 1;
+  }
+
+  const ws = createWorkspace(opts.root);
+  const source = path.basename(opts.file);
+  let imported = 0;
+  let skippedId = 0;
+  let skippedText = 0;
+  let invalid = 0;
+  for (const item of list) {
+    if (!isLessonShape(item)) {
+      invalid++;
+      continue;
+    }
+    const outcome = ws.lessons.importLesson(item, source);
+    if (outcome === "imported") imported++;
+    else if (outcome === "skipped-id") skippedId++;
+    else skippedText++;
+  }
+
+  process.stdout.write(
+    pc.green(`✓ memory imported`) +
+      pc.dim(` — ${imported} added`) +
+      (skippedId ? pc.dim(`, ${skippedId} skipped (same id)`) : "") +
+      (skippedText ? pc.dim(`, ${skippedText} skipped (same claim)`) : "") +
+      (invalid ? pc.yellow(`, ${invalid} invalid ignored`) : "") +
+      pc.dim(`\n  source: ${source} — provenance stays in each lesson's evidence\n`),
+  );
+  return imported === 0 && skippedId === 0 && skippedText === 0 ? 2 : 0;
 }
