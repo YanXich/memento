@@ -15,6 +15,7 @@ import { startWebServer } from "../src/web/server.ts";
 
 let server: WebServer | null = null;
 let root: string | null = null;
+let home: string | null = null;
 
 function makeFixture(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-web-"));
@@ -23,6 +24,20 @@ function makeFixture(): string {
   fs.mkdirSync(path.join(dir, ".memento", "sessions"), { recursive: true });
 
   fs.writeFileSync(path.join(dir, ".memento", "spec", "constitution.md"), "# Constitution\n\n- Keep it small.\n");
+
+  // A plugin package with a provenance manifest — the Plugins tab inventory.
+  fs.mkdirSync(path.join(dir, ".memento", "plugins", "todo-guard"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".memento", "plugins", "todo-guard", "index.ts"), "export default { name: 'todo-guard', setup() {} };\n");
+  fs.writeFileSync(
+    path.join(dir, ".memento", "plugins", "todo-guard", ".memento-plugin.json"),
+    JSON.stringify({
+      name: "todo-guard",
+      source: "https://github.com/memento/plugins.git",
+      rev: "abc1234567890",
+      installedAt: "2026-09-01T00:00:00.000Z",
+      description: "Guards TODO markers in specs",
+    }),
+  );
 
   const now = Date.now();
   const lesson = {
@@ -54,9 +69,12 @@ function makeFixture(): string {
   return dir;
 }
 
-async function boot(): Promise<WebServer> {
+async function boot(opts: { home?: string } = {}): Promise<WebServer> {
   root = makeFixture();
-  server = await startWebServer({ root, port: 0 });
+  // A fake home keeps the global-plugin scan deterministic — tests must never
+  // observe the developer's real ~/.memento/plugins.
+  home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "memento-web-home-"));
+  server = await startWebServer({ root, port: 0, homedir: home });
   return server;
 }
 
@@ -65,6 +83,8 @@ afterEach(async () => {
   server = null;
   if (root) fs.rmSync(root, { recursive: true, force: true });
   root = null;
+  if (home) fs.rmSync(home, { recursive: true, force: true });
+  home = null;
 });
 
 describe("web workbench", () => {
@@ -84,11 +104,14 @@ describe("web workbench", () => {
       memory: { active: number };
       sessions: { total: number };
       lessons: { recent: { id: string }[] };
+      plugins: { project: number; global: number };
     };
     expect(ov.spec.files).toBe(1);
     expect(ov.memory.active).toBe(1);
     expect(ov.sessions.total).toBe(1);
     expect(ov.lessons.recent[0]?.id).toBe("l_test01");
+    expect(ov.plugins.project).toBe(1);
+    expect(ov.plugins.global).toBe(0);
 
     const lessons = (await (await fetch(`${s.url}/api/lessons`)).json()) as { active: { id: string; history: { op: string; confidence: number }[] }[]; retired: unknown[] };
     expect(lessons.active.map((l) => l.id)).toEqual(["l_test01"]);
@@ -170,6 +193,51 @@ describe("web workbench", () => {
     expect(after.status).toBe(200);
     const body = (await after.json()) as { active: { id: string }[] };
     expect(body.active.map((l) => l.id).sort()).toEqual(["l_test01", "l_test02"]);
+  });
+
+  it("inventories installed plugins with provenance, without executing them", async () => {
+    const s = await boot();
+    const d = (await (await fetch(`${s.url}/api/plugins`)).json()) as {
+      plugins: { name: string; scope: string; entry: string; source: string; rev: string; installedAt: string; description: string }[];
+      trust: { projectTrusted: boolean };
+      enabled: boolean;
+    };
+    expect(d.enabled).toBe(true);
+    // Untrusted by default — the workbench must surface this honestly.
+    expect(d.trust.projectTrusted).toBe(false);
+    expect(d.plugins).toHaveLength(1);
+    expect(d.plugins[0]).toMatchObject({
+      name: "todo-guard",
+      scope: "project",
+      entry: "todo-guard/index.ts",
+      source: "https://github.com/memento/plugins.git",
+      rev: "abc1234567890",
+      description: "Guards TODO markers in specs",
+    });
+  });
+
+  it("reflects trustProjectPlugins from config in the plugins endpoint", async () => {
+    const s = await boot();
+    const before = (await (await fetch(`${s.url}/api/plugins`)).json()) as { trust: { projectTrusted: boolean } };
+    expect(before.trust.projectTrusted).toBe(false);
+
+    fs.writeFileSync(path.join(root as string, ".memento", "config.json"), JSON.stringify({ trustProjectPlugins: true }));
+    const after = (await (await fetch(`${s.url}/api/plugins`)).json()) as { trust: { projectTrusted: boolean } };
+    expect(after.trust.projectTrusted).toBe(true);
+  });
+
+  it("lists global plugins from the home dir alongside project ones", async () => {
+    const h = fs.mkdtempSync(path.join(os.tmpdir(), "memento-web-home-"));
+    fs.mkdirSync(path.join(h, ".memento", "plugins"), { recursive: true });
+    fs.writeFileSync(path.join(h, ".memento", "plugins", "now-tool.ts"), "export default { setup() {} };\n");
+    const s = await boot({ home: h });
+    const d = (await (await fetch(`${s.url}/api/plugins`)).json()) as { plugins: { name: string; scope: string; source: string }[] };
+    expect(d.plugins.map((p) => [p.name, p.scope]).sort()).toEqual([
+      ["now-tool", "global"],
+      ["todo-guard", "project"],
+    ]);
+    // A loose file has no manifest — provenance falls back to "local".
+    expect(d.plugins.find((p) => p.name === "now-tool")?.source).toBe("local");
   });
 });
 

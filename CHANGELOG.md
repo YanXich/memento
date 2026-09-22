@@ -41,6 +41,12 @@ All notable changes to memento are documented here. Format follows
 - **Official starter plugins** — `examples/plugins/`: `todo-guard` (spec
   checker), `session-digest` (lifecycle watcher), `now-tool` (tool
   registration) — each installable straight from this repo.
+- **Workbench Plugins tab** — `memento web` gained a Plugins page (`/api/plugins`)
+  that inventories installed plugins with provenance (source, revision, install
+  time, entry point) from manifests only — plugin code is never executed in the
+  browser; a trust banner says honestly when project plugins are installed but
+  not loaded, and the overview adds a plugin stat. The inventory shares one
+  scanner with the CLI (`scanPluginDir`).
 - **Memory evolution visualization** — the web workbench draws a confidence
   sparkline and an event timeline (created/reinforced/contradicted/retired) for
   every lesson; `?evol` deep-links to it.

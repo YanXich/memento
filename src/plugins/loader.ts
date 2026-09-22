@@ -15,6 +15,24 @@ import type { SpecChecker } from "../spec/verify.ts";
 
 export type { PluginContext, MementoPlugin, LoadedPlugin, PluginEvent, PluginEventHandler } from "./api.ts";
 
+/** Manifest file a plugin package carries (written by `memento plugins install`). */
+export const PLUGIN_MANIFEST = ".memento-plugin.json";
+
+export interface PluginManifest {
+  name?: string;
+  source?: string;
+  installedAt?: string;
+  rev?: string;
+  description?: string;
+}
+
+export interface ScannedPlugin {
+  name: string;
+  /** Loadable entry, relative to the plugins dir (`todo-guard/index.ts`). */
+  entry: string;
+  manifest: PluginManifest | null;
+}
+
 export interface PluginHost {
   tools: { register(tool: Tool): () => void };
   specCheckers: SpecChecker[];
@@ -85,6 +103,29 @@ function pluginEntries(dir: string): { file: string; name: string }[] {
 export function hasPluginFiles(dir: string): boolean {
   if (!fs.existsSync(dir)) return false;
   return pluginEntries(dir).length > 0;
+}
+
+/**
+ * One-level inventory of a plugins dir — the same shapes the loader would
+ * load, but nothing is executed. Manifests are parsed statically, so the
+ * read-only workbench can render provenance without running plugin code.
+ */
+export function scanPluginDir(dir: string): ScannedPlugin[] {
+  const found: ScannedPlugin[] = [];
+  for (const { file, name } of pluginEntries(dir)) {
+    const pkgDir = path.dirname(file) !== dir ? path.dirname(file) : null;
+    let manifest: PluginManifest | null = null;
+    if (pkgDir) {
+      try {
+        manifest = JSON.parse(fs.readFileSync(path.join(pkgDir, PLUGIN_MANIFEST), "utf8")) as PluginManifest;
+      } catch {
+        /* no manifest — a hand-written package dir */
+      }
+    }
+    // Forward slashes: the entry is also rendered by the workbench API.
+    found.push({ name, entry: path.relative(dir, file).split(path.sep).join("/"), manifest });
+  }
+  return found.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function loadPlugins(

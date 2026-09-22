@@ -11,10 +11,12 @@
  *   - answers GET exclusively; the workbench cannot mutate the workspace
  *   - rejects non-loopback Host headers (DNS-rebinding defence)
  *   - reads through the same stores the CLI uses — nothing re-implemented,
- *     and no project plugins are loaded or executed
+ *     and no project plugins are loaded or executed. The Plugins tab only
+ *     inventories plugin dirs and parses manifests statically.
  */
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -22,6 +24,7 @@ import { loadConfig, userConfigPath, projectConfigPath } from "../config.ts";
 import { listSessions, loadSession } from "../kernel/session.ts";
 import { LessonStore } from "../memory/store.ts";
 import type { Lesson } from "../memory/types.ts";
+import { scanPluginDir } from "../plugins/loader.ts";
 import { loadSpecBundle } from "../spec/store.ts";
 import { walkFiles } from "../util/paths.ts";
 import { VERSION } from "../version.ts";
@@ -34,11 +37,15 @@ export interface WebServer {
   close(): Promise<void>;
 }
 
-export async function startWebServer(opts: { root: string; port?: number }): Promise<WebServer> {
+export async function startWebServer(opts: { root: string; port?: number; homedir?: string }): Promise<WebServer> {
   const root = path.resolve(opts.root);
+  // `homedir` is a test hook: production uses the real home for the global
+  // plugins inventory. It never affects config loading (which uses its own
+  // paths) — it only redirects the global plugin scan.
+  const home = opts.homedir ?? os.homedir();
   const ui = readUi();
   const server = http.createServer((req, res) => {
-    void handle(req, res, root, ui).catch((err: unknown) => {
+    void handle(req, res, root, ui, home).catch((err: unknown) => {
       json(res, 500, { error: err instanceof Error ? err.message : String(err) });
     });
   });
@@ -70,7 +77,7 @@ function readUi(): string {
   }
 }
 
-async function handle(req: http.IncomingMessage, res: http.ServerResponse, root: string, ui: string): Promise<void> {
+async function handle(req: http.IncomingMessage, res: http.ServerResponse, root: string, ui: string, home: string): Promise<void> {
   const host = String(req.headers.host ?? "").replace(/:\d+$/, "");
   if (!LOOPBACK.has(host)) {
     return json(res, 403, { error: `forbidden host "${host}" — the workbench only answers loopback requests` });
@@ -85,11 +92,13 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, root:
     res.end(ui);
     return;
   }
-  if (p === "/api/overview") return respondJson(req, res, p, [stampDir(sessionsDir(root)), stampDir(memoryDir(root)), stampTree(specDir(root)), stampFile(projectConfigPath(root)), stampFile(userConfigPath())], () => overview(root));
+  if (p === "/api/overview") return respondJson(req, res, p, [stampDir(sessionsDir(root)), stampDir(memoryDir(root)), stampTree(specDir(root)), stampFile(projectConfigPath(root)), stampFile(userConfigPath()), stampTree(pluginsDir(root)), stampTree(globalPluginsDir(home))], () => overview(root, home));
   if (p === "/api/sessions") return respondJson(req, res, p, [stampDir(sessionsDir(root))], () => sessionList(root));
   if (p.startsWith("/api/sessions/")) return sessionDetail(req, res, root, decodeURIComponent(p.slice("/api/sessions/".length)));
   if (p === "/api/lessons") return respondJson(req, res, p, [stampDir(memoryDir(root))], () => lessons(root));
   if (p === "/api/spec") return respondJson(req, res, p, [stampTree(specDir(root))], () => spec(root));
+  // trust/enabled ride on config, so config files are part of the stamp too.
+  if (p === "/api/plugins") return respondJson(req, res, p, [stampTree(pluginsDir(root)), stampTree(globalPluginsDir(home)), stampFile(projectConfigPath(root)), stampFile(userConfigPath())], () => pluginsList(root, home));
   return json(res, 404, { error: `no route: ${p}` });
 }
 
@@ -212,7 +221,15 @@ function specDir(root: string): string {
   return path.join(root, ".memento", "spec");
 }
 
-function overview(root: string): Record<string, unknown> {
+function pluginsDir(root: string): string {
+  return path.join(root, ".memento", "plugins");
+}
+
+function globalPluginsDir(home: string): string {
+  return path.join(home, ".memento", "plugins");
+}
+
+function overview(root: string, home: string): Record<string, unknown> {
   const { config } = loadConfig(root);
   const bundle = loadSpecBundle(root);
   const store = LessonStore.load(root);
@@ -237,6 +254,38 @@ function overview(root: string): Record<string, unknown> {
     lessons: {
       recent: active.slice(0, 5).map((l) => ({ id: l.id, text: l.text, confidence: l.confidence })),
     },
+    plugins: {
+      project: scanPluginDir(pluginsDir(root)).length,
+      global: scanPluginDir(globalPluginsDir(home)).length,
+    },
+  };
+}
+
+/**
+ * Installed-plugin inventory for the workbench Plugins tab. Purely static:
+ * manifests are parsed, no plugin module is ever imported here.
+ */
+function pluginsList(root: string, home: string): Record<string, unknown> {
+  const { config } = loadConfig(root);
+  const scopes: { dir: string; scope: "project" | "global" }[] = [
+    { dir: pluginsDir(root), scope: "project" },
+    { dir: globalPluginsDir(home), scope: "global" },
+  ];
+  const all = scopes.flatMap(({ dir, scope }) =>
+    scanPluginDir(dir).map((p) => ({
+      name: p.name,
+      scope,
+      entry: p.entry,
+      source: p.manifest?.source ?? "local",
+      description: p.manifest?.description ?? null,
+      rev: p.manifest?.rev ?? null,
+      installedAt: p.manifest?.installedAt ?? null,
+    })),
+  );
+  return {
+    plugins: all,
+    trust: { projectTrusted: config.trustProjectPlugins === true },
+    enabled: config.plugins !== false,
   };
 }
 

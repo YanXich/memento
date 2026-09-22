@@ -220,6 +220,26 @@
   .md blockquote { border-left: 3px solid var(--line); margin: 10px 0; padding: 2px 0 2px 14px; color: var(--sub); }
   .md .chk { color: var(--green); }
 
+  /* ---------------------------------------------------------------- plugins */
+  .plugin { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .plugin .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .plugin .pname { font-weight: 650; font-size: 14.5px; }
+  .plugin .pname .glyph {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-right: 6px;
+  }
+  .plugin .text { margin: 8px 0 6px; color: var(--sub); font-size: 13px; }
+  .badge.project { color: var(--violet); border-color: color-mix(in srgb, var(--violet) 35%, var(--line)); }
+  .badge.global { color: var(--aqua); border-color: color-mix(in srgb, var(--aqua) 35%, var(--line)); }
+  .trust-banner {
+    margin: 16px 0 6px; padding: 12px 15px; border-radius: 10px;
+    background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--line));
+    color: var(--sub); font-size: 13px;
+  }
+  .trust-banner b { color: var(--ink); }
+  .trust-banner .mono { font-size: 12px; }
+
   footer { color: var(--faint); font-size: 12px; text-align: center; padding: 30px 0 40px; }
 </style>
 </head>
@@ -233,6 +253,7 @@
   <button data-view="sessions">Sessions</button>
   <button data-view="memory">Memory</button>
   <button data-view="spec">Spec</button>
+  <button data-view="plugins">Plugins</button>
 </nav>
 <main id="main"><div class="empty">loading…</div></main>
 <footer>memento workbench · read-only · everything below lives in <span class="mono">.memento/</span></footer>
@@ -249,7 +270,9 @@ const api = async (p) => {
 };
 const fmtTime = (ts) => new Date(ts).toISOString().replace("T", " ").slice(0, 16);
 const relTime = (ts) => {
-  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  // ts may be a numeric epoch or an ISO string (e.g. a plugin manifest date).
+  const t = typeof ts === "number" ? ts : Date.parse(ts);
+  const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
   if (s < 60) return s + "s ago";
   if (s < 3600) return Math.floor(s / 60) + "m ago";
   if (s < 86400) return Math.floor(s / 3600) + "h ago";
@@ -361,6 +384,7 @@ async function renderOverview() {
   setTabs("overview");
   ov = ov || (await api("/api/overview"));
   const m = ov.memory, s = ov.spec;
+  const pTotal = (ov.plugins ? ov.plugins.project + ov.plugins.global : 0);
   main().innerHTML =
     '<h1>Workbench</h1><div class="dim">Everything memento has learned about <span class="mono">' + esc(ov.root) + "</span></div>" +
     '<h2>At a glance</h2>' +
@@ -369,6 +393,7 @@ async function renderOverview() {
       '<div class="stat"><div class="n">' + m.active + '<small> / ' + (m.active + m.retired) + "</small></div><div class='l'>active lessons · " + m.retired + " retired</div></div>" +
       '<div class="stat"><div class="n">' + m.avgConfidence.toFixed(2) + "</div><div class='l'>avg confidence across memory</div></div>" +
       '<div class="stat"><div class="n">' + ov.sessions.total + "</div><div class='l'>recorded session" + (ov.sessions.total === 1 ? "" : "s") + "</div></div>" +
+      '<div class="stat"><div class="n">' + pTotal + "</div><div class='l'>plugins · " + (ov.plugins ? ov.plugins.project : 0) + " project / " + (ov.plugins ? ov.plugins.global : 0) + " global</div></div>" +
     "</div>" +
     '<div class="cols">' +
       "<div><h2>Recent sessions</h2>" + miniSessions(ov.sessions.recent) + "</div>" +
@@ -538,6 +563,57 @@ async function renderSpec(file) {
     '<div class="spec-grid" style="margin-top:16px">' + nav + '<div class="md">' + mdToHtml(doc.content) + "</div></div>";
 }
 
+async function renderPlugins() {
+  setTabs("plugins");
+  const d = await api("/api/plugins");
+  const parts = [
+    "<h1>Plugins</h1><div class='dim'>Installed extensions — tools, spec checkers, and lifecycle hooks. The workbench inventories them without executing a line of plugin code.</div>",
+  ];
+  const proj = d.plugins.filter((p) => p.scope === "project");
+  if (proj.length && !d.trust.projectTrusted) {
+    parts.push(
+      '<div class="trust-banner">' + proj.length + " project plugin" + (proj.length === 1 ? "" : "s") +
+        ' in <span class="mono">.memento/plugins</span> but <b>not loaded</b> — set <span class="mono">"trustProjectPlugins": true</span> in <span class="mono">.memento/config.json</span> to activate</div>',
+    );
+  }
+  if (!d.enabled) {
+    parts.push('<div class="trust-banner">plugins are disabled in config — <span class="mono">"plugins": false</span></div>');
+  }
+  if (!d.plugins.length) {
+    parts.push(
+      '<div class="empty">no plugins yet — install one with <span class="mono">memento plugins install owner/repo</span>, or scaffold your own with <span class="mono">memento plugins init my-plugin</span></div>',
+    );
+    main().innerHTML = parts.join("");
+    return;
+  }
+  const scopes = [
+    ["project", ".memento/plugins"],
+    ["global", "~/.memento/plugins"],
+  ];
+  for (const [scope, dirLabel] of scopes) {
+    const group = d.plugins.filter((p) => p.scope === scope);
+    if (!group.length) continue;
+    parts.push(
+      "<h2>" + (scope === "project" ? "Project" : "Global") + " <span class='faint' style='text-transform:none'>· " + dirLabel + "</span></h2>" +
+        group.map(pluginHtml).join(""),
+    );
+  }
+  main().innerHTML = parts.join("");
+}
+
+function pluginHtml(p) {
+  const meta = [];
+  if (p.rev) meta.push("<span>@" + esc(p.rev.slice(0, 7)) + "</span>");
+  if (p.installedAt) meta.push("<span>" + relTime(p.installedAt) + "</span>");
+  return '<div class="plugin">' +
+    '<div class="top"><span class="pname"><span class="glyph">◈</span>' + esc(p.name) + "</span>" +
+    '<span class="badge ' + esc(p.scope) + '">' + esc(p.scope) + "</span>" +
+    '<span class="meta" style="margin-left:auto">' + meta.join("") + "</span></div>" +
+    (p.description ? '<div class="text">' + esc(p.description) + "</div>" : "") +
+    '<div class="meta"><span>' + esc(p.entry) + "</span><span>" + esc(p.source) + "</span></div>" +
+    "</div>";
+}
+
 /* --------------------------------------------------------------- routing */
 async function route() {
   const hashFull = location.hash.replace(/^#\/?/, "");
@@ -549,6 +625,7 @@ async function route() {
     else if (parts[0] === "sessions") await renderSessions();
     else if (parts[0] === "memory") await renderMemory();
     else if (parts[0] === "spec") await renderSpec(parts.slice(1).join("/") || null);
+    else if (parts[0] === "plugins") await renderPlugins();
     else await renderOverview();
     // `?evol` deep link: open every evolution arc (shareable "it learns" view).
     if (hashQuery && new URLSearchParams(hashQuery).has("evol")) {

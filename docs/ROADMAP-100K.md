@@ -107,6 +107,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 
 ### Phase 4 — 品牌与增长（进行中：品牌化 ✅ / 落地页 ⬜）
 - ✅ 前端品牌化（**清新紫蓝 + 水木元素**）：web workbench 紫蓝渐变调色板（violet #a78bfa → aqua #6fe3d0）、顶部 water line、径向光晕背景、渐变 logo/置信条；终端输出品牌化（◈ 品牌徽记 + 紫蓝工具行 + 语义色状态）；浏览器实测截图存证（_shots/）
+- ✅ workbench 插件页（Plugins tab + /api/plugins）：静态盘点已装插件（名称/来源/rev/安装时间/入口，绝不执行插件代码）+ 信任横幅（trustProjectPlugins 未开启时诚实提示“未加载”）+ overview 插件统计卡；共享 scanPluginDir（loader 与 CLI 单一事实源）
 - ✅ README 重构（双语）：四答案定位（记忆/spec/插件/生态原生）+ 新输出示例 + 完整 CLI 表 + 安全模型（含 MCP 信任）
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
 - ✅ 落地页（静态 + GitHub Pages）：hero 定位语 + 动画终端（30s demo + chat）+ 记忆基准学习曲线 SVG + CTA；OG/twitter 标签；浏览器实测截图存证

@@ -24,11 +24,12 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline/promises";
 import pc from "picocolors";
-import { hasPluginFiles } from "../../plugins/loader.ts";
+import { hasPluginFiles, PLUGIN_MANIFEST, scanPluginDir } from "../../plugins/loader.ts";
+import type { PluginManifest } from "../../plugins/loader.ts";
 
 const execFileAsync = promisify(execFile);
 
-const MANIFEST = ".memento-plugin.json";
+const MANIFEST = PLUGIN_MANIFEST;
 
 export interface PluginsOptions {
   action: "list" | "install" | "init" | "remove";
@@ -57,42 +58,20 @@ export interface InstalledPlugin {
   installedAt?: string;
 }
 
-export interface PluginManifest {
-  name?: string;
-  source?: string;
-  installedAt?: string;
-  rev?: string;
-  description?: string;
+export type { PluginManifest };
+
+function readManifest(dir: string): PluginManifest | null {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, MANIFEST), "utf8")) as PluginManifest;
+  } catch {
+    return null;
+  }
 }
 
 function pluginRoot(opts: Pick<PluginsOptions, "global" | "root">): { dir: string; scope: "global" | "project" } {
   return opts.global
     ? { dir: path.join(os.homedir(), ".memento", "plugins"), scope: "global" }
     : { dir: path.join(opts.root, ".memento", "plugins"), scope: "project" };
-}
-
-function readManifest(dir: string): PluginManifest | null {
-  const file = path.join(dir, MANIFEST);
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8")) as PluginManifest;
-  } catch {
-    return null;
-  }
-}
-
-/** A plugin package is a dir with an index entry; a loose file is a plugin file. */
-function scanDir(dir: string): { name: string; manifest: PluginManifest | null }[] {
-  if (!fs.existsSync(dir)) return [];
-  const found: { name: string; manifest: PluginManifest | null }[] = [];
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.isFile() && /\.(ts|mjs|js)$/.test(e.name) && !e.name.endsWith(".d.ts")) {
-      found.push({ name: e.name.replace(/\.(ts|mjs|js)$/, ""), manifest: null });
-    } else if (e.isDirectory() && !e.name.startsWith(".")) {
-      const hasIndex = ["index.ts", "index.mjs", "index.js"].some((f) => fs.existsSync(path.join(dir, e.name, f)));
-      if (hasIndex) found.push({ name: e.name, manifest: readManifest(path.join(dir, e.name)) });
-    }
-  }
-  return found.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function realGit(args: string[], cwd: string): Promise<string> {
@@ -160,7 +139,7 @@ async function listPlugins(opts: PluginsOptions): Promise<number> {
 
   const all: InstalledPlugin[] = [];
   for (const { dir, scope } of scopes) {
-    for (const p of scanDir(dir)) {
+    for (const p of scanPluginDir(dir)) {
       all.push({
         name: p.name,
         scope,

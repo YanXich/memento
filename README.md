@@ -225,7 +225,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento memory export` / `import <file>` | team memory as code — commit an export, teammates import it (`--out`, `--active-only`) |
 | `memento plugins list` / `install <src>` / `init <name>` / `remove <name>` | the plugin marketplace: install `owner/repo`, any git URL, or a local path (provenance manifest, confirmation first, `--global`) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
-| `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
+| `memento web` | open the read-only workbench — spec, memory, sessions, and installed plugins in a browser (`--port`, `--no-open`) |
 
 All commands accept `-C <dir>` to point at a workspace root.
 
