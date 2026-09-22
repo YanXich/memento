@@ -33,6 +33,14 @@ All notable changes to memento are documented here. Format follows
   returns a condensed answer, so long file dumps never bloat the parent context.
   Sub-sessions get their own JSONL transcript linked from the parent log; no
   recursion, no writes.
+- **Plugin marketplace** — `memento plugins install owner/repo[#subdir]` (git
+  URLs and local paths too) copies a plugin package into `.memento/plugins/`
+  with a provenance manifest (source, revision, install time) after listing
+  the files and asking once; `plugins list [--json]`, `init`, `remove` round
+  it out. The loader gained the package-dir shape (`plugins/<name>/index.ts`).
+- **Official starter plugins** — `examples/plugins/`: `todo-guard` (spec
+  checker), `session-digest` (lifecycle watcher), `now-tool` (tool
+  registration) — each installable straight from this repo.
 - **Memory evolution visualization** — the web workbench draws a confidence
   sparkline and an event timeline (created/reinforced/contradicted/retired) for
   every lesson; `?evol` deep-links to it.
@@ -47,14 +55,17 @@ All notable changes to memento are documented here. Format follows
 - **M12** — the web server re-read sessions on every poll (O(2×N) sync reads);
   replaced with single-pass scanning plus a stamp cache and ETag 304 incremental
   reads.
+- **Spec verify dead channel** — `spec verify` never attached plugins, so a
+  plugin-registered spec checker silently never ran; it now loads plugins
+  asynchronously, and every issue is attributed to its checker automatically.
 
 ### Changed
 
 - README restructured around the four-answer positioning (memory / spec / plugins /
   ecosystem-native), with a full CLI table and the security model.
-- Landmark test suite grew to **136 tests**: safety regressions, parallel timing,
-  MCP dual channel, git/undo, commit hints, resume, chat REPL, memory evolution
-  and the parallel bench schedule.
+- Landmark test suite grew to **145 tests**: safety regressions, parallel timing,
+  MCP dual channel, git/undo, commit hints, resume, chat REPL, memory evolution,
+  the parallel bench schedule and the plugin marketplace.
 
 ## [0.1.0] — the coding agent that remembers
 
