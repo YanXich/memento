@@ -12,6 +12,13 @@
 <meta name="color-scheme" content="dark" />
 <title>Memento — the coding agent that remembers</title>
 <meta name="description" content="A spec-driven coding agent for the terminal. It learns from every session — lessons with confidence scores that rise on evidence and fall on contradiction. Specs that answer back. Plugins in ten lines. MCP in both directions." />
+<meta property="og:title" content="Memento — the coding agent that remembers" />
+<meta property="og:description" content="Every session ends with reflection. Every task starts with recall. Your agent gets measurably better at your code, session after session — and you can prove it." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="memento" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Memento — the coding agent that remembers" />
+<meta name="twitter:description" content="Confidence-weighted memory, deterministic specs, and a built-in benchmark that proves the learning." />
 <style>
   :root {
     --bg: #0d0c15;
@@ -143,6 +150,23 @@
   .term .c-green { color: var(--green); }
   .term .c-amber { color: var(--amber); }
 
+  /* Animated demo: lines fade in one by one, then the whole session replays.
+     Progressive enhancement — without JS (or with reduced motion) everything
+     is visible at once. */
+  .term .tl { opacity: 0; transition: opacity 0.22s ease; }
+  .term.playing .tl.on { opacity: 1; }
+  .term.playing .caret::after {
+    content: "▊"; color: var(--aqua); margin-left: 2px;
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .term .tl { opacity: 1; transition: none; }
+    .term.playing .caret::after { animation: none; }
+  }
+  .term + .term { margin-top: 26px; }
+  .demo-caption { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 14px; }
+
   /* ------------------------------------------------------------ features */
   section.block { max-width: 1060px; margin: 0 auto 96px; padding: 0 24px; }
   section.block h2 {
@@ -179,7 +203,21 @@
   .arc .val { color: var(--sub); font: 13px var(--mono); text-align: right; }
   .arc .note { color: var(--faint); font-size: 12.5px; grid-column: 2; margin-top: -6px; }
 
-  /* ------------------------------------------------------------- compare */
+  /* --------------------------------------------------------- learning curve */
+  .curve {
+    max-width: 860px; margin: 0 auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 28px 26px 22px;
+  }
+  .curve .nums { display: flex; gap: 44px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .curve .nums .k { text-align: center; }
+  .curve .nums .v { font: 800 30px var(--mono); }
+  .curve .nums .l { color: var(--faint); font-size: 12.5px; }
+  .curve svg { display: block; width: 100%; height: auto; }
+  .curve .legend { display: flex; gap: 22px; justify-content: center; margin-top: 10px; font-size: 13px; color: var(--sub); }
+  .curve .legend .sw { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 7px; border-radius: 2px; }
+  .curve .source { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 14px; }
+  .curve .source a { color: var(--sub); }
   .cmp { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   .cmp th {
     text-align: left; color: var(--faint); font: 11px var(--mono);
@@ -218,8 +256,10 @@
   <nav>
     <a href="#why">Why</a>
     <a href="#memory">Memory</a>
+    <a href="#curve">Learning curve</a>
     <a href="#new">What's new</a>
     <a href="#compare">Compare</a>
+    <a href="benchmarks/index.html">Benchmarks</a>
   </nav>
   <a class="gh" href="https://github.com/memento-agent/memento">GitHub ↗</a>
 </header>
@@ -240,37 +280,54 @@
   </div>
   <div class="stats">
     <div class="s"><div class="n grad-text">4</div><div class="l">runtime deps</div></div>
-    <div class="s"><div class="n grad-text">120</div><div class="l">tests passing</div></div>
+    <div class="s"><div class="n grad-text">134</div><div class="l">tests passing</div></div>
     <div class="s"><div class="n grad-text">0</div><div class="l">databases</div></div>
     <div class="s"><div class="n grad-text">±0.30</div><div class="l">disproof &gt; proof</div></div>
   </div>
 </div>
 
 <div class="demo">
-  <div class="term">
+  <div class="term animated">
     <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="title">memento — second run on the same codebase</span></div>
-<pre><span class="c-user">$ memento run "add rate limiting to the login endpoint"</span>
-
-<span class="c-brand">◈ memento</span> <span class="c-dim">v0.1.0 · deepseek/deepseek-chat · ~/work/api</span>
-<span class="c-dim">▸ recalled 2 lesson(s) from memory</span>
-<span class="c-dim">  + [constraint] Login routes chain through middleware/index.ts</span>
-<span class="c-dim">  + [pattern] Rate limits live in src/middleware/, not in handlers</span>
-<span class="c-dim">▸ indexing repository</span>
-<span class="c-dim">▸ building</span>
-
-<span class="c-brand">⏺ read(src/auth/login.ts)</span>  <span class="c-brand">⏺ read(src/middleware/index.ts)</span>
-<span class="c-dim">── turn 2 ──</span>
-<span class="c-brand">⏺ write(src/middleware/rate-limit.ts)</span>  <span class="c-brand">⏺ edit(src/auth/login.ts)</span>
-<span class="c-brand">⏺ bash(npm test)</span>
-<span class="c-green">  120 passed</span>
-
-<span class="c-dim">▸ reflecting on the session (self-improvement pass)</span>
-<span class="c-green">  +1 new lesson</span> <span class="c-dim">· [pattern] Rate-limit middleware composes cleanly with auth</span>
-<span class="c-amber">suggested commit</span> <span class="c-user">feat: rate-limit the login endpoint</span>
-<span class="c-dim">  (memento never commits for you — paste this into git commit -m)</span>
-
-<span class="c-brand">◈ session s_h8x2kd91mf</span> <span class="c-green">· done</span> <span class="c-dim">· 3 turn(s) · 8.2k in / 1.1k out</span></pre>
+<pre><span class="tl"><span class="c-user">$ memento run "add rate limiting to the login endpoint"</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="c-brand">◈ memento</span> <span class="c-dim">v0.1.0 · deepseek/deepseek-chat · ~/work/api</span></span>
+<span class="tl"><span class="c-dim">▸ recalled 2 lesson(s) from memory</span></span>
+<span class="tl"><span class="c-dim">  + [constraint] Login routes chain through middleware/index.ts</span></span>
+<span class="tl"><span class="c-dim">  + [pattern] Rate limits live in src/middleware/, not in handlers</span></span>
+<span class="tl"><span class="c-dim">▸ indexing repository</span></span>
+<span class="tl"><span class="c-dim">▸ building</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="c-brand">⏺ read(src/auth/login.ts)</span>  <span class="c-brand">⏺ read(src/middleware/index.ts)</span></span>
+<span class="tl"><span class="c-dim">── turn 2 ──</span></span>
+<span class="tl"><span class="c-brand">⏺ write(src/middleware/rate-limit.ts)</span>  <span class="c-brand">⏺ edit(src/auth/login.ts)</span></span>
+<span class="tl"><span class="c-brand">⏺ bash(npm test)</span></span>
+<span class="tl"><span class="c-green">  120 passed</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="c-dim">▸ reflecting on the session (self-improvement pass)</span></span>
+<span class="tl"><span class="c-green">  +1 new lesson</span> <span class="c-dim">· [pattern] Rate-limit middleware composes cleanly with auth</span></span>
+<span class="tl"><span class="c-amber">suggested commit</span> <span class="c-user">feat: rate-limit the login endpoint</span></span>
+<span class="tl"><span class="c-dim">  (memento never commits for you — paste this into git commit -m)</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="c-brand">◈ session s_h8x2kd91mf</span> <span class="c-green">· done</span> <span class="c-dim">· 3 turn(s) · 8.2k in / 1.1k out</span></span></pre>
   </div>
+  <div class="term animated">
+    <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="title">memento chat — one session, every exchange remembered</span></div>
+<pre><span class="tl"><span class="c-brand">◈ memento chat</span> <span class="c-dim">v0.1.0 · deepseek/deepseek-chat · ~/work/api</span></span>
+<span class="tl"><span class="c-dim">type a task — or /help · /memory · /exit</span></span>
+<span class="tl"></span>
+<span class="tl"><span class="c-dim">❯ </span><span class="c-user">why does the login endpoint 429 under load?</span></span>
+<span class="tl"><span class="c-dim">recalled 2 lesson(s) from memory</span></span>
+<span class="tl"><span class="c-brand">⏺ read(src/auth/login.ts)</span></span>
+<span class="tl"><span class="c-amber">▲ bash(npm run bench) wants to run:</span> <span class="c-dim">approve? [y]es / [n]o / [a]lways &gt; </span><span class="c-user">y</span></span>
+<span class="tl"><span class="c-green">No rate limiter in the chain — want me to add the middleware pattern we used in api-gw?</span></span>
+<span class="tl"><span class="c-dim">❯ </span><span class="c-user">yes, and rerun the tests</span></span>
+<span class="tl"><span class="c-brand">⏺ write(src/middleware/rate-limit.ts)</span>  <span class="c-brand">⏺ edit(src/auth/login.ts)</span></span>
+<span class="tl"><span class="c-brand">⏺ bash(npm test)</span>  <span class="c-green">120 passed</span></span>
+<span class="tl"><span class="c-dim">/exit — reflecting… +1 new lesson</span></span>
+<span class="tl"><span class="c-brand">◈ session s_g5sb76fivj</span> <span class="c-dim">— `memento chat --session s_g5sb76fivj` continues it</span></span></pre>
+  </div>
+  <p class="demo-caption">Every line you just watched is a real command — run it yourself in a fresh repo.</p>
 </div>
 
 <section class="block" id="new">
@@ -290,6 +347,53 @@
       <h3>Watch memory evolve</h3>
       <p><span class="mono">memento web</span> opens a local workbench: confidence sparklines for every lesson, an event history per memory, and a resume hint when you return to a repo.</p>
     </div>
+  </div>
+</section>
+
+<section class="block" id="curve">
+  <h2>The learning curve, <span class="grad-text">measured</span></h2>
+  <p class="lead">Same task family, same model, twice: once <strong>cold</strong> — no memory — and once <strong>warm</strong>, with the lessons from the first pass recalled. This is the <span class="mono">--dry</span> deterministic run; reproduce it in your own terminal in under a minute.</p>
+  <div class="curve">
+    <div class="nums">
+      <div class="k"><div class="v grad-text">−50%</div><div class="l">turns per task, warm vs cold</div></div>
+      <div class="k"><div class="v grad-text">−44%</div><div class="l">input tokens per task, warm vs cold</div></div>
+      <div class="k"><div class="v grad-text">5/5</div><div class="l">tasks learned after one lesson each</div></div>
+    </div>
+    <svg viewBox="0 0 560 240" role="img" aria-label="Input tokens per task: cold runs stay flat at 2500; warm runs drop to 1400 after the first task teaches a reusable pattern.">
+      <defs>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6fe3d0"/></linearGradient>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6fe3d0" stop-opacity="0"/></linearGradient>
+      </defs>
+      <g stroke="#2a2737" stroke-width="1">
+        <line x1="40" y1="190" x2="530" y2="190"/>
+        <line x1="40" y1="124.6" x2="530" y2="124.6"/>
+        <line x1="40" y1="59.2" x2="530" y2="59.2"/>
+      </g>
+      <g fill="#6f6a85" font-size="10" font-family="ui-monospace, Consolas, monospace">
+        <text x="33" y="194" text-anchor="end">0</text>
+        <text x="33" y="128.6" text-anchor="end">1000</text>
+        <text x="33" y="63.2" text-anchor="end">2000</text>
+      </g>
+      <polygon points="40,26.5 162.5,98.5 285,98.5 407.5,98.5 530,98.5 530,190 40,190" fill="url(#areaGrad)" opacity="0.22"/>
+      <polyline points="40,26.5 162.5,26.5 285,26.5 407.5,26.5 530,26.5" fill="none" stroke="#6f6a85" stroke-width="2" stroke-dasharray="5 5"/>
+      <polyline points="40,26.5 162.5,98.5 285,98.5 407.5,98.5 530,98.5" fill="none" stroke="url(#lineGrad)" stroke-width="2.5"/>
+      <g fill="#a78bfa">
+        <circle cx="40" cy="26.5" r="4"/><circle cx="162.5" cy="98.5" r="4"/><circle cx="285" cy="98.5" r="4"/><circle cx="407.5" cy="98.5" r="4"/><circle cx="530" cy="98.5" r="4"/>
+      </g>
+      <g fill="#a8a3bd" font-size="10" font-family="ui-monospace, Consolas, monospace" text-anchor="middle">
+        <text x="40" y="212">rate-limit</text>
+        <text x="162.5" y="212">idempotency</text>
+        <text x="285" y="212">logging</text>
+        <text x="407.5" y="212">cors</text>
+        <text x="530" y="212">cache</text>
+      </g>
+      <text x="86" y="18" fill="#6fe3d0" font-size="10" font-family="ui-monospace, Consolas, monospace">task 1 teaches the pattern</text>
+    </svg>
+    <div class="legend">
+      <span><span class="sw" style="background: #6f6a85"></span>cold — no memory</span>
+      <span><span class="sw" style="background: linear-gradient(120deg, #a78bfa, #6fe3d0)"></span>warm — recalled lessons</span>
+    </div>
+    <p class="source">From <span class="mono">memento bench --dry</span> (deterministic provider, zero network) — <a href="benchmarks/index.html">see the full leaderboard ↗</a></p>
   </div>
 </section>
 
@@ -359,8 +463,69 @@
 <footer>
   ◈ memento · <span class="mono">MIT</span> · plain files, no lock-in ·
   <span class="mono">.memento/</span> is yours to keep<br />
-  Built with 4 runtime dependencies — and 120 tests that prove it works.
+  Built with 4 runtime dependencies — and 134 tests that prove it works.
 </footer>
+
+<script>
+/* Animated terminal demos — progressive enhancement. Lines fade in one by
+   one while the terminal is in view, hold, then replay. Without JS, or with
+   prefers-reduced-motion, everything renders fully visible. */
+(function () {
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var terms = document.querySelectorAll(".term.animated");
+  if (reduced || !terms.length || !("IntersectionObserver" in window)) return;
+
+  var queue = Array.prototype.map.call(terms, function (term) {
+    return {
+      term: term,
+      lines: Array.prototype.slice.call(term.querySelectorAll("pre .tl")),
+      running: false,
+    };
+  });
+
+  function play(q) {
+    if (q.running) return;
+    q.running = true;
+    var i = 0;
+    var step = function () {
+      if (!q.term.classList.contains("playing")) {
+        q.running = false; // scrolled away — re-entry replays from the top
+        return;
+      }
+      if (i < q.lines.length) {
+        q.lines[i].classList.add("on");
+        if (i === q.lines.length - 1) q.lines[i].classList.add("caret");
+        i++;
+        setTimeout(step, 150 + Math.random() * 140);
+      } else {
+        setTimeout(function () {
+          q.lines.forEach(function (l) { l.classList.remove("on", "caret"); });
+          q.running = false;
+          play(q);
+        }, 5600);
+      }
+    };
+    step();
+  }
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      var q = null;
+      for (var i = 0; i < queue.length; i++) if (queue[i].term === e.target) q = queue[i];
+      if (!q) return;
+      if (e.isIntersecting) {
+        q.term.classList.add("playing");
+        play(q);
+      } else {
+        q.term.classList.remove("playing");
+        q.lines.forEach(function (l) { l.classList.remove("on", "caret"); });
+      }
+    });
+  }, { threshold: 0.25 });
+
+  queue.forEach(function (q) { io.observe(q.term); });
+})();
+</script>
 
 </body>
 </html>
