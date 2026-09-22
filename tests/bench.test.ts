@@ -76,6 +76,44 @@ describe("memento bench", () => {
     expect(out.tasks[0]!.warm.turns).toBe(2);
   });
 
+  it("parallel schedule: identical results to the sequential one, in task order", async () => {
+    const file = writeTasks({
+      tasks: [
+        { name: "util-a", task: "Add a small util helper" },
+        { name: "util-b", task: "Add another util helper" },
+        { name: "util-c", task: "Add a third util helper" },
+      ],
+    });
+    const code = await benchTask({ file, root, dry: true, json: true, jobs: 3 });
+    expect(code).toBe(0);
+    const out = JSON.parse(writes.join("")) as {
+      tasks: Array<{ name: string; cold: { turns: number } | null; warm: { turns: number; lessons: number } }>;
+    };
+    // Slot order is task order regardless of how workers interleaved.
+    expect(out.tasks.map((r) => r.name)).toEqual(["util-a", "util-b", "util-c"]);
+    // Cold sandboxes stay pristine under parallelism.
+    expect(out.tasks.map((r) => r.cold?.turns)).toEqual([2, 2, 2]);
+    // The warm chain is still sequential — memory accumulates task by task.
+    expect(out.tasks.map((r) => r.warm.turns)).toEqual([2, 1, 1]);
+    expect(out.tasks.map((r) => r.warm.lessons)).toEqual([1, 2, 3]);
+  });
+
+  it("parallel schedule: --no-cold leaves every cold slot null", async () => {
+    const file = writeTasks({
+      tasks: [
+        { name: "util-a", task: "Add a small util helper" },
+        { name: "util-b", task: "Add another util helper" },
+      ],
+    });
+    const code = await benchTask({ file, root, dry: true, json: true, noCold: true, jobs: 2 });
+    expect(code).toBe(0);
+    const out = JSON.parse(writes.join("")) as {
+      tasks: Array<{ cold: null; warm: { turns: number } }>;
+    };
+    expect(out.tasks.map((r) => r.cold)).toEqual([null, null]);
+    expect(out.tasks.map((r) => r.warm.turns)).toEqual([2, 1]);
+  });
+
   it("accepts a bare JSON array of tasks", async () => {
     const file = writeTasks([{ name: "util-a", task: "Add a small util helper" }]);
     const code = await benchTask({ file, root, dry: true, noCold: true, json: true });

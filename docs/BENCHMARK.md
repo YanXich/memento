@@ -44,6 +44,11 @@ memento bench tasks.json --json > bench-out.json
 
 # shareable standalone HTML report (brand-styled, no CDN)
 memento bench tasks.json --report bench-report.html
+
+# parallel schedule: cold copies fan out over a worker pool, the warm
+# chain (which must stay sequential — each task inherits memory) rides
+# its own worker; --jobs 1 restores the fully sequential schedule
+memento bench tasks.json --jobs 4
 ```
 
 `tasks.json` is a family of similar tasks — the more alike, the steeper the learning curve:

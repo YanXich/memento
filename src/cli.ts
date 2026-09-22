@@ -126,6 +126,7 @@ program
   .option("-m, --model <id>", "model id")
   .option("--max-turns <n>", "hard cap on agent turns per run", (v) => parseInt(v, 10))
   .option("--dry", "deterministic mock provider — zero network, for CI and demos")
+  .option("--jobs <n>", "parallel cold copies (default: all in --dry, 2 for real providers)", (v) => parseInt(v, 10))
   .option("--no-cold", "skip the cold runs (warm learning curve only)")
   .option("--keep", "keep the run directory for inspection")
   .option("--json", "machine-readable output")
@@ -141,6 +142,7 @@ program
       noCold: Boolean(opts.noCold),
       keep: Boolean(opts.keep),
       json: Boolean(opts.json),
+      ...(opts.jobs ? { jobs: opts.jobs } : {}),
       ...(opts.report ? { report: opts.report } : {}),
     });
   });

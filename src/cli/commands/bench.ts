@@ -58,6 +58,14 @@ export interface BenchOptions {
   report?: string;
   /** Skip the cold runs (warm learning curve only). */
   noCold?: boolean;
+  /**
+   * Parallelism: cold copies are independent and run on a worker pool while
+   * the warm chain (which must stay sequential — each task inherits the
+   * previous one's memory) advances on its own worker.
+   * Default: all tasks in parallel for --dry (no rate limits), 2 for real
+   * providers. `1` restores the fully sequential schedule.
+   */
+  jobs?: number;
 }
 
 export interface BenchRun {
@@ -189,19 +197,24 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
 
   const results: BenchResult[] = [];
   try {
-    for (const [i, task] of tasks.entries()) {
-      if (!opts.json) {
-        process.stdout.write(pc.dim(`task ${i + 1}/${tasks.length}: ${task.name}\n`));
+    const jobs = Math.max(1, Math.min(opts.jobs ?? (opts.dry ? tasks.length : 2), tasks.length));
+    if (jobs === 1) {
+      for (const [i, task] of tasks.entries()) {
+        if (!opts.json) {
+          process.stdout.write(pc.dim(`task ${i + 1}/${tasks.length}: ${task.name}\n`));
+        }
+        let cold: BenchRun | null = null;
+        if (!opts.noCold) {
+          const coldDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-cold-"));
+          copyRepo(opts.root, coldDir);
+          cold = await runOnce(coldDir, task.task, opts, { recall: false, reflect: false });
+          fs.rmSync(coldDir, { recursive: true, force: true });
+        }
+        const warm = await runOnce(runDir, task.task, opts, { recall: true, reflect: true });
+        results.push({ name: task.name, task: task.task, cold, warm });
       }
-      let cold: BenchRun | null = null;
-      if (!opts.noCold) {
-        const coldDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-cold-"));
-        copyRepo(opts.root, coldDir);
-        cold = await runOnce(coldDir, task.task, opts, { recall: false, reflect: false });
-        fs.rmSync(coldDir, { recursive: true, force: true });
-      }
-      const warm = await runOnce(runDir, task.task, opts, { recall: true, reflect: true });
-      results.push({ name: task.name, task: task.task, cold, warm });
+    } else {
+      await runParallel(tasks, runDir, opts, jobs, results);
     }
   } finally {
     // Whatever happened, stdout must be sane again before the report runs.
@@ -245,6 +258,61 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
   if (!opts.keep) fs.rmSync(runDir, { recursive: true, force: true });
   else if (!opts.json) process.stdout.write(pc.dim(`\nrun dir kept at ${runDir}\n`));
   return 0;
+}
+
+/**
+ * Parallel schedule for the benchmark.
+ *
+ * Cold copies are independent by construction — each task gets its own
+ * pristine sandbox — so they fan out over `jobs - 1` workers. The warm chain
+ * is the opposite: every warm run accumulates lessons for the next one, so it
+ * stays strictly sequential and rides its own worker, starting immediately
+ * and overlapping with the cold pool. Result slots are written by task index,
+ * so the output array keeps task order no matter how workers interleave.
+ */
+async function runParallel(tasks: BenchTask[], runDir: string, opts: BenchOptions, jobs: number, results: BenchResult[]): Promise<void> {
+  // Slots keep task order; `warm` is guaranteed filled before this returns.
+  for (const t of tasks) {
+    results.push({ name: t.name, task: t.task, cold: null, warm: null as unknown as BenchRun });
+  }
+  // Cold runs live here as promises while workers claim them; a defined slot
+  // marks a claimed task, so workers never double-book.
+  const coldPromises: Array<Promise<BenchRun> | undefined> = new Array(tasks.length);
+  const progress = (i: number, label: string): void => {
+    if (!opts.json) process.stdout.write(pc.dim(`task ${i + 1}/${tasks.length}: ${tasks[i]!.name} · ${label}\n`));
+  };
+
+  const coldPool = opts.noCold
+    ? []
+    : Array.from({ length: Math.max(1, jobs - 1) }, async () => {
+        for (let i = 0; i < tasks.length; i++) {
+          if (coldPromises[i]) continue; // already claimed by a peer worker
+          coldPromises[i] = (async () => {
+            const coldDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-cold-"));
+            copyRepo(opts.root, coldDir);
+            try {
+              return await runOnce(coldDir, tasks[i]!.task, opts, { recall: false, reflect: false });
+            } finally {
+              fs.rmSync(coldDir, { recursive: true, force: true });
+            }
+          })();
+          progress(i, "cold");
+        }
+      });
+
+  const warmChain = (async () => {
+    for (let i = 0; i < tasks.length; i++) {
+      progress(i, "warm");
+      results[i]!.warm = await runOnce(runDir, tasks[i]!.task, opts, { recall: true, reflect: true });
+    }
+  })();
+
+  await Promise.all([...coldPool, warmChain]);
+  // Array.from (not .map) — the slot array is sparse and .map skips holes.
+  const colds = await Promise.all(Array.from(coldPromises, (p) => p ?? Promise.resolve(null)));
+  colds.forEach((cold, i) => {
+    results[i]!.cold = cold;
+  });
 }
 
 /** One benchmark run: build the loop, run it, optionally reflect. */

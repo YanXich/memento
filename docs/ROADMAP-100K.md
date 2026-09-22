@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **134/134 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹）· 构建成功。
+**验证状态**：typecheck 干净 · **136/136 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -92,6 +92,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 记忆进化可视化：web 工作台 Memory 页为每条 lesson 绘制置信度进化 sparkline + 事件时间线（created/reinforced/contradicted/retired），`?evol` deep link 一键展开；compact 保留每 lesson 最近 8 条轨迹（COMPACT_HISTORY_KEEP），会话详情页带 `memento resume` 复制提示
 - ✅ M12 web server 增量读：单遍 scanSession + stamp 缓存/ETag 304
 - ✅ 交互式 chat REPL：`memento chat` 同循环交互（每轮记忆召回、内联审批、退出反射、--session 续接）
+- ✅ bench 并行调度：cold 副本独立 → worker 池并行（`--jobs`），warm 链严格串行（每任务继承记忆）独占 worker 即时重叠；输出按任务序，`--jobs 1` 回到串行；并行与串行结果一致 + `--no-cold` 空槽回归测试
 - 验收：e2e 测试覆盖 repo map 注入与 plan 批准链路 ✅
 
 ### Phase 3 — 生态（✅ 已完成）
@@ -107,7 +108,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 前端品牌化（**清新紫蓝 + 水木元素**）：web workbench 紫蓝渐变调色板（violet #a78bfa → aqua #6fe3d0）、顶部 water line、径向光晕背景、渐变 logo/置信条；终端输出品牌化（◈ 品牌徽记 + 紫蓝工具行 + 语义色状态）；浏览器实测截图存证（_shots/）
 - ✅ README 重构（双语）：四答案定位（记忆/spec/插件/生态原生）+ 新输出示例 + 完整 CLI 表 + 安全模型（含 MCP 信任）
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
-- ⬜ 落地页（静态 + GitHub Pages）：hero 一行定位语 + 记忆基准图表 + 30 秒 demo
+- ✅ 落地页（静态 + GitHub Pages）：hero 定位语 + 动画终端（30s demo + chat）+ 记忆基准学习曲线 SVG + CTA；OG/twitter 标签；浏览器实测截图存证
 - ⬜ 传播：HN/Reddit/V2EX 发帖节奏、benchmark 博客、模板仓库（memento-starter）
 - ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑
 
