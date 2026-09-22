@@ -93,12 +93,12 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ⬜ M12 web server 增量读（顺延）
 - 验收：e2e 测试覆盖 repo map 注入与 plan 批准链路 ✅
 
-### Phase 3 — 生态（✅ 已完成，子 agent 顺延）
+### Phase 3 — 生态（✅ 已完成）
 - ✅ MCP client 接入（stdio 传输；零依赖自写 JSON-RPC 2.0 wire 层；Windows shell 引号化；超时/exit/parse error 防御）
 - ✅ `memento serve-mcp` 暴露 lessons（search_lessons / add_lesson / memory_stats；真实子进程 e2e 验证）
 - ✅ MCP 信任模型：仅用户级配置加载，项目级需 `trustProjectMcp: true`（S3 同模式，防 clone RCE）
 - ✅ 原生 git 集成：只读 git_status/git_diff/git_log 工具 + diff 感知 commit 建议（含 untracked 文件）+ `memento undo` 撤销快照链
-- ⬜ 子 agent 分派（code-explorer 子任务）——评估后顺延，价值低于 MCP/git
+- ✅ 子 agent 分派：内建 `subagent` 工具派出只读探索者（独立迷你循环 + 独立 JSONL 转录 + 主日志链指；只读工具带，无递归无写入）
 - ⬜ 插件市场雏形（官方示例插件仓库 + `memento plugins install`）——顺延
 - 验收：MCP 双通道 22 测试 + git/undo 15 测试全绿 ✅
 

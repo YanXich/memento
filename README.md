@@ -10,7 +10,7 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-118%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-120%20passing-success.svg" />
 </p>
 
 ```console
@@ -127,6 +127,7 @@ Memento speaks the ecosystem's language, in both directions:
 - **Plan first** — `memento plan` drafts a Plan/Act split before touching anything. Approve the plan, and the agent executes it step by step; decline, and nothing changes.
 - **Resume** — `memento resume s_…` continues an interrupted run: the exact transcript is replayed into the model and the loop goes on in the SAME session log, so the audit trail stays one story (verify → reflect → commit hint run again).
 - **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos.
+- **Agent chain** — the built-in `subagent` tool dispatches a read-only explorer for one question: it reads/greps the repo in its own mini-loop and returns a condensed answer, so long file dumps never bloat your context. Sub-sessions get their own JSONL transcript, linked from the parent log; explorers can't spawn explorers (no recursion, no writes).
 
 ---
 
@@ -150,7 +151,7 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 118 tests
+npm run check      # typecheck + 120 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```
@@ -251,7 +252,9 @@ Built-in presets: **deepseek**, **openai**, **anthropic**, **ollama**, **moonsho
 - **Auditable memory.** Confidence isn't a vibe — it's arithmetic you can read, and every change carries the evidence that caused it.
 - **Reversible extension.** Every registration returns a disposer. `memento doctor` shows exactly what each plugin contributed.
 
-**Non-goals:** chat UI, multi-agent orchestration, a hosted service. Memento is a composable engine and a CLI. The `memento-agent` package also exports its full API (kernel, spec, memory, plugins) if you want to embed it.
+**Non-goals:** chat UI, autonomous multi-agent swarms, a hosted service. Memento is a composable engine and a CLI. The `memento-agent` package also exports its full API (kernel, spec, memory, plugins) if you want to embed it.
+
+The agent chain is deliberately one level deep: the built-in `subagent` tool dispatches read-only explorers, and explorers cannot dispatch explorers — trees stay shallow, transcripts stay auditable.
 
 ---
 
@@ -262,7 +265,7 @@ src/
 ├── kernel/     agent loop, session log (JSONL), event bus
 ├── spec/       scanner, generator, store, deterministic verifiers
 ├── memory/     lesson store (confidence dynamics), reflection, recall
-├── tools/      builtin tools (read/write/edit/ls/grep/glob/bash/git) + undo snapshots + guard classifier
+├── tools/      builtin tools (read/write/edit/ls/grep/glob/bash/git/subagent) + undo snapshots + guard classifier
 ├── llm/        provider registry, OpenAI-compat + Anthropic adapters, SSE parsing
 ├── plugins/    jiti loader, capability seams, disposer management
 ├── mcp/        stdio wire layer + memory server (serve-mcp) + client bridge

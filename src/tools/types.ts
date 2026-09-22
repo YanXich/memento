@@ -6,7 +6,8 @@
  * built-in tools, plugin tools, and future MCP bridges all land here.
  */
 import { z } from "zod";
-import type { ToolSchema } from "../llm/types.ts";
+import type { LlmProvider, ModelInfo, ToolSchema } from "../llm/types.ts";
+import type { SessionLog } from "../kernel/session.ts";
 import { zodToJsonSchema } from "./schema.ts";
 
 export interface ToolResult {
@@ -30,6 +31,10 @@ export interface ToolContext {
   progress: (line: string) => void;
   /** Ask the user (or policy) to approve a mutating/risky call. */
   approve: (req: ApprovalRequest) => Promise<boolean>;
+  /** The loop's LLM — lets tools like `subagent` run their own mini-loop. */
+  llm?: { provider: LlmProvider; model: ModelInfo; apiKey?: string; baseUrl?: string };
+  /** The loop's session log — lets tools leave an audit note. */
+  session?: SessionLog;
 }
 
 export interface Tool<A = unknown> {

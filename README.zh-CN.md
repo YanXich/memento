@@ -10,7 +10,7 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-brightgreen.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-118%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-120%20passing-success.svg" />
 </p>
 
 ```console
@@ -127,6 +127,7 @@ Memento 说生态的语言，而且双向都会：
 - **先计划后动手**——`memento plan` 在动任何文件之前先起草 Plan/Act 计划。批准后 Agent 逐步执行；拒绝则一切如初。
 - **断点续跑**——`memento resume s_…` 继续被中断的任务：完整转录重新喂给模型，循环在**同一个**会话日志里继续，审计轨迹始终是一条完整故事（verify → reflect → commit hint 全部重跑）。
 - **基准测试**——`memento bench tasks.json` 把一族相似任务跑两遍对比：冷跑（全新副本、零记忆）vs 热跑（召回经验），输出学习曲线——随着经验积累，轮数与 token 究竟省了多少。`--dry` 换成确定性零网络 provider，CI 与演示里都能实测记忆效应。
+- **Agent 链路**——内建 `subagent` 工具派出一名只读探索者回答一个问题：它在自己的迷你循环里 read/grep 仓库，返回浓缩答案，长文件转储不再撑爆你的上下文。子会话拥有自己的 JSONL 转录并由主日志链指；探索者不能嵌套派发（无递归、无写入）。
 
 ---
 
@@ -150,7 +151,7 @@ memento run "解释 auth 如何工作，然后加一个 /healthz 路由"
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 118 个测试
+npm run check      # typecheck + 120 个测试
 npm run build      # dist/cli.js，约 160 KB
 node dist/cli.js run "…"
 ```
@@ -251,7 +252,9 @@ memento show s_h8x2kd91mf     # 查看转录（任意唯一前缀即可）
 - **可审计的记忆。** 置信度不是玄学——是你能读懂的算术，每次变动都附上引发它的证据。
 - **可逆的扩展。** 每次注册都返回 disposer。`memento doctor` 精确显示每个插件贡献了什么。
 
-**非目标：** 聊天 UI、多 Agent 编排、托管服务。Memento 是可组合的引擎 + CLI。`memento-agent` 包同时导出完整 API（内核、规格、记忆、插件），供嵌入使用。
+**非目标：** 聊天 UI、自主式多 Agent 蜂群、托管服务。Memento 是可组合的引擎 + CLI。`memento-agent` 包同时导出完整 API（内核、规格、记忆、插件），供嵌入使用。
+
+Agent 链路刻意只设一层：内建 `subagent` 工具派出只读探索者，探索者不能再派探索者——树保持浅层，转录始终可审计。
 
 ---
 

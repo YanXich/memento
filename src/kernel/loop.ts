@@ -347,6 +347,15 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
       ...(opts.signal ? { signal: opts.signal } : {}),
       progress: () => {},
       approve: async () => false,
+      // Tools that spawn their own mini-loop (subagent) reuse the parent's
+      // provider; tools that audit (subagent) get the parent's session log.
+      llm: {
+        provider: opts.provider,
+        model: opts.model,
+        ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+        ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+      },
+      session: opts.session,
     };
 
     // Runs preserve the model's call order end to end: consecutive read-only
