@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>memento bench — 5 task(s)</title>
+<style>
+  :root {
+    --bg: #0d0c15; --panel: #16141f; --line: #2a2737; --line-soft: #201d2e;
+    --ink: #e9e7f2; --sub: #a8a3bd; --faint: #6f6a85;
+    --violet: #a78bfa; --aqua: #6fe3d0; --green: #7fd8a4; --red: #e08a8a;
+    --grad: linear-gradient(120deg, var(--violet) 0%, var(--aqua) 100%);
+    --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background:
+      radial-gradient(1100px 520px at 80% -10%, rgba(124, 92, 240, 0.16), transparent 62%),
+      radial-gradient(900px 420px at -6% 2%, rgba(111, 227, 208, 0.09), transparent 58%),
+      var(--bg);
+    background-attachment: fixed; color: var(--ink);
+    font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: var(--mono); }
+  .dim { color: var(--faint); }
+  .grad-text {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header {
+    border-bottom: 1px solid var(--line-soft); padding: 26px 32px 22px;
+    position: relative;
+  }
+  header::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--grad); opacity: 0.85;
+  }
+  header .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
+  header .meta { color: var(--faint); font: 12.5px var(--mono); margin-top: 4px; }
+  main { max-width: 900px; margin: 0 auto; padding: 36px 24px 60px; }
+  section { margin-bottom: 44px; }
+  h2 { font-size: 20px; margin: 0 0 14px; letter-spacing: -0.3px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 20px 16px;
+  }
+  .card .n { font: 700 26px var(--mono); }
+  .card .l { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+  .chart {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 18px 10px; overflow-x: auto;
+  }
+  .legend { display: flex; gap: 22px; font-size: 13px; color: var(--sub); margin-bottom: 8px; }
+  .legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th {
+    text-align: left; color: var(--faint); font: 11px var(--mono);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--line-soft); }
+  td.name { color: var(--ink); font-weight: 600; }
+  td.strong { color: var(--aqua); }
+  td.good { color: var(--green); font-weight: 600; }
+  td.bad { color: var(--red); }
+  footer {
+    border-top: 1px solid var(--line-soft); padding: 26px 24px 40px;
+    text-align: center; color: var(--faint); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="grad-text">◈ memento</span> · memory benchmark</div>
+  <div class="meta">bench-dry · 5 task(s) · dry run (deterministic) · 2026-09-22</div>
+</header>
+<main>
+  <section class="cards">
+    <div class="card"><div class="n grad-text">−50%</div><div class="l">turns saved vs memoryless</div></div>
+    <div class="card"><div class="n grad-text">−44%</div><div class="l">input tokens saved vs memoryless</div></div>
+    <div class="card"><div class="n grad-text">5</div><div class="l">lessons in memory at the end</div></div>
+    <div class="card"><div class="n grad-text">2 → 1</div><div class="l">warm turns, first → last task (50% fewer)</div></div>
+  </section>
+
+  <section>
+    <h2>Learning curve</h2>
+    <div class="chart">
+      <div class="legend"><span><span class="sw" style="background:var(--violet)"></span>warm turns per task</span><span><span class="sw" style="background:var(--aqua)"></span>warm input tokens per task</span></div>
+      <svg viewBox="0 0 640 150" width="640" height="150" role="img" aria-label="learning curve">
+        <polyline points="0.0,20.0 160.0,80.0 320.0,80.0 480.0,80.0 640.0,80.0" fill="none" stroke="var(--violet)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="0.0" cy="20.0" r="3.5" fill="var(--violet)"><title>task 1: 2</title></circle><circle cx="160.0" cy="80.0" r="3.5" fill="var(--violet)"><title>task 2: 1</title></circle><circle cx="320.0" cy="80.0" r="3.5" fill="var(--violet)"><title>task 3: 1</title></circle><circle cx="480.0" cy="80.0" r="3.5" fill="var(--violet)"><title>task 4: 1</title></circle><circle cx="640.0" cy="80.0" r="3.5" fill="var(--violet)"><title>task 5: 1</title></circle>
+        <polyline points="0.0,20.0 160.0,72.8 320.0,72.8 480.0,72.8 640.0,72.8" fill="none" stroke="var(--aqua)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="0.0" cy="20.0" r="3.5" fill="var(--aqua)"><title>task 1: 2500</title></circle><circle cx="160.0" cy="72.8" r="3.5" fill="var(--aqua)"><title>task 2: 1400</title></circle><circle cx="320.0" cy="72.8" r="3.5" fill="var(--aqua)"><title>task 3: 1400</title></circle><circle cx="480.0" cy="72.8" r="3.5" fill="var(--aqua)"><title>task 4: 1400</title></circle><circle cx="640.0" cy="72.8" r="3.5" fill="var(--aqua)"><title>task 5: 1400</title></circle>
+      </svg>
+    </div>
+  </section>
+
+  <section>
+    <h2>Per-task comparison</h2>
+    <table>
+      <thead><tr><th>task</th><th>cold turns</th><th>cold tokens</th><th>warm turns</th><th>warm tokens</th><th>turns saved</th><th>tokens saved</th><th>lessons</th></tr></thead>
+      <tbody>
+    <tr>
+      <td class="name">rate-limit</td>
+      <td class="mono">2</td><td class="mono">2.5k</td>
+      <td class="mono strong">2</td><td class="mono strong">2.5k</td>
+      <td class="dim">±0%</td><td class="dim">±0%</td>
+      <td class="mono dim">1</td>
+    </tr>
+    <tr>
+      <td class="name">idempotency</td>
+      <td class="mono">2</td><td class="mono">2.5k</td>
+      <td class="mono strong">1</td><td class="mono strong">1.4k</td>
+      <td class="good">−50%</td><td class="good">−44%</td>
+      <td class="mono dim">2</td>
+    </tr>
+    <tr>
+      <td class="name">logging</td>
+      <td class="mono">2</td><td class="mono">2.5k</td>
+      <td class="mono strong">1</td><td class="mono strong">1.4k</td>
+      <td class="good">−50%</td><td class="good">−44%</td>
+      <td class="mono dim">3</td>
+    </tr>
+    <tr>
+      <td class="name">cors</td>
+      <td class="mono">2</td><td class="mono">2.5k</td>
+      <td class="mono strong">1</td><td class="mono strong">1.4k</td>
+      <td class="good">−50%</td><td class="good">−44%</td>
+      <td class="mono dim">4</td>
+    </tr>
+    <tr>
+      <td class="name">cache</td>
+      <td class="mono">2</td><td class="mono">2.5k</td>
+      <td class="mono strong">1</td><td class="mono strong">1.4k</td>
+      <td class="good">−50%</td><td class="good">−44%</td>
+      <td class="mono dim">5</td>
+    </tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+<footer>
+  generated by <span class="mono">memento bench</span> · plain HTML, no CDN — commit it to GitHub Pages and share the link
+</footer>
+</body>
+</html>

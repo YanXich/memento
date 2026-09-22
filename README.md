@@ -126,7 +126,7 @@ Memento speaks the ecosystem's language, in both directions:
 - **Undo** — every `write` / `edit` / `apply_patch` snapshots the previous state to `.memento/undo/`. `memento undo` rolls back the last write batch, step by step. Crash containment for the file system.
 - **Plan first** — `memento plan` drafts a Plan/Act split before touching anything. Approve the plan, and the agent executes it step by step; decline, and nothing changes.
 - **Resume** — `memento resume s_…` continues an interrupted run: the exact transcript is replayed into the model and the loop goes on in the SAME session log, so the audit trail stays one story (verify → reflect → commit hint run again).
-- **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos.
+- **Benchmark** — `memento bench tasks.json` runs a family of tasks cold (pristine copy, no memory) vs warm (recalled lessons) and prints the learning curve: turns and tokens saved as lessons accumulate. `--dry` swaps in a deterministic zero-network provider, so the memory effect is measurable in CI and demos. `--report report.html` writes a brand-styled standalone report you can commit to GitHub Pages — [sample report](site/benchmarks/demo.html).
 - **Agent chain** — the built-in `subagent` tool dispatches a read-only explorer for one question: it reads/greps the repo in its own mini-loop and returns a condensed answer, so long file dumps never bloat your context. Sub-sessions get their own JSONL transcript, linked from the parent log; explorers can't spawn explorers (no recursion, no writes).
 
 ---
@@ -216,7 +216,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento lessons` | list lessons (`--all`, `--json`), `--reinforce <id>`, `--contradict <id>`, `--retire <id>` |
 | `memento remember <text>` | record a lesson by hand — it joins the same confidence machinery |
 | `memento sessions` / `show <id>` / `resume <id>` | session history, transcripts, and interruption recovery (any unique prefix works) |
-| `memento bench <tasks.json>` | cold vs warm runs over a task family — the memory effect, measured (`--dry`, `--json`, `--no-cold`, `--keep`) |
+| `memento bench <tasks.json>` | cold vs warm runs over a task family — the memory effect, measured (`--dry`, `--json`, `--no-cold`, `--keep`, `--report <path>`) |
 | `memento serve-mcp` | expose memory as an MCP server over stdio (search/add lessons, stats) — for Claude Desktop, Cursor, goose… |
 | `memento web` | open the read-only workbench — spec, memory, and sessions in a browser (`--port`, `--no-open`) |
 

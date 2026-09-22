@@ -30,6 +30,7 @@ import { buildSystemPrompt } from "../../prompts.ts";
 import { buildRepoMap } from "../../kernel/repomap.ts";
 import { messageId } from "../../util/ids.ts";
 import { oneLine } from "../../util/text.ts";
+import { renderReportHtml } from "./bench-report.ts";
 import { VERSION } from "../../version.ts";
 import type { LlmProvider, LlmRequest, ModelInfo, StreamEvent } from "../../llm/types.ts";
 import type { Message } from "../../llm/types.ts";
@@ -53,6 +54,8 @@ export interface BenchOptions {
   keep?: boolean;
   /** Machine-readable output. */
   json?: boolean;
+  /** Write a brand-styled standalone HTML report to this path. */
+  report?: string;
   /** Skip the cold runs (warm learning curve only). */
   noCold?: boolean;
 }
@@ -221,6 +224,22 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
     );
   } else {
     printReport(results);
+  }
+
+  if (opts.report) {
+    const html = renderReportHtml(
+      {
+        provider: providerLabel,
+        root: opts.root,
+        dry: Boolean(opts.dry),
+        generatedAt: new Date().toISOString(),
+      },
+      results,
+    );
+    const target = path.resolve(opts.report);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, html, "utf8");
+    if (!opts.json) process.stdout.write(pc.green(`\nreport → ${opts.report} (plain HTML, share-ready)\n`));
   }
 
   if (!opts.keep) fs.rmSync(runDir, { recursive: true, force: true });

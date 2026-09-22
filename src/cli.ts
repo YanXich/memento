@@ -102,6 +102,7 @@ program
   .option("--no-cold", "skip the cold runs (warm learning curve only)")
   .option("--keep", "keep the run directory for inspection")
   .option("--json", "machine-readable output")
+  .option("--report <path>", "write a brand-styled standalone HTML report (commit it, share it)")
   .action(async (file: string, opts) => {
     process.exitCode = await benchTask({
       file,
@@ -113,6 +114,7 @@ program
       noCold: Boolean(opts.noCold),
       keep: Boolean(opts.keep),
       json: Boolean(opts.json),
+      ...(opts.report ? { report: opts.report } : {}),
     });
   });
 

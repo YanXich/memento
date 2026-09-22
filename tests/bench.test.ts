@@ -96,4 +96,29 @@ describe("memento bench", () => {
     const file = writeTasks({ tasks: [] });
     await expect(benchTask({ file, root, dry: true })).resolves.toBe(1);
   });
+
+  it("--report: writes a standalone brand-styled HTML report", async () => {
+    const file = writeTasks({
+      tasks: [
+        { name: "util-a", task: "Add a small util helper" },
+        { name: "util-b", task: "Add another util helper" },
+      ],
+    });
+    // Nested path: the parent directories must be created, not assumed.
+    const report = path.join(root, "out", "nested", "report.html");
+    const code = await benchTask({ file, root, dry: true, json: true, report });
+    expect(code).toBe(0);
+    const html = fs.readFileSync(report, "utf8");
+    // Standalone document, brand styling, real data, escaped text.
+    expect(html).toContain("<!doctype html>");
+    expect(html).toContain("◈ memento");
+    expect(html).toContain("Learning curve");
+    expect(html).toContain("<polyline");
+    expect(html).toContain("util-a");
+    expect(html).toContain("turns saved vs memoryless");
+    // Percentages are computed from the dry numbers: cold 2 → warm 1 turns.
+    expect(html).toContain("−50%");
+    // The task text is escaped, not injected raw.
+    expect(html).not.toContain('<script');
+  });
 });
