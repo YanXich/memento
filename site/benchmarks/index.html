@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<meta name="description" content="The memory benchmark leaderboard — how much do accumulated lessons save on the next task? Cold vs warm runs, measured in turns and tokens." />
+<title>memento · memory benchmark leaderboard</title>
+<style>
+  :root {
+    --bg: #0d0c15; --panel: #16141f; --line: #2a2737; --line-soft: #201d2e;
+    --ink: #e9e7f2; --sub: #a8a3bd; --faint: #6f6a85;
+    --violet: #a78bfa; --aqua: #6fe3d0; --green: #7fd8a4; --red: #e08a8a; --amber: #e8c87a;
+    --grad: linear-gradient(120deg, var(--violet) 0%, var(--aqua) 100%);
+    --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background:
+      radial-gradient(1100px 520px at 80% -10%, rgba(124, 92, 240, 0.16), transparent 62%),
+      radial-gradient(900px 420px at -6% 2%, rgba(111, 227, 208, 0.09), transparent 58%),
+      var(--bg);
+    background-attachment: fixed; color: var(--ink);
+    font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: var(--mono); }
+  .dim { color: var(--faint); }
+  .grad-text {
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  a { color: var(--violet); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    border-bottom: 1px solid var(--line-soft); padding: 26px 32px 22px; position: relative;
+  }
+  header::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--grad); opacity: 0.85; }
+  header .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  header .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
+  header nav { font-size: 14px; display: flex; gap: 18px; }
+  main { max-width: 960px; margin: 0 auto; padding: 36px 24px 60px; }
+  section { margin-bottom: 48px; }
+
+  /* hero */
+  .hero h1 { font-size: 34px; line-height: 1.15; letter-spacing: -0.8px; margin: 4px 0 12px; }
+  .hero p { color: var(--sub); max-width: 640px; margin: 0 0 20px; }
+  .kicker {
+    display: inline-block; border: 1px solid var(--line); color: var(--aqua);
+    background: color-mix(in srgb, var(--aqua) 6%, transparent);
+    border-radius: 999px; padding: 3px 12px; font: 12px var(--mono);
+  }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 15px;
+  }
+  .card .n { font: 700 25px var(--mono); }
+  .card .l { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+
+  h2 { font-size: 20px; margin: 0 0 14px; letter-spacing: -0.3px; }
+  h2 .anchor { color: var(--faint); }
+
+  /* methodology */
+  .method { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .method { grid-template-columns: 1fr; } }
+  .method .card { border-top: 2px solid var(--line); }
+  .method .cold { border-top-color: var(--red); }
+  .method .warm { border-top-color: var(--aqua); }
+  .method .tag { font: 12px var(--mono); text-transform: uppercase; letter-spacing: 0.8px; }
+  .method .cold .tag { color: var(--red); }
+  .method .warm .tag { color: var(--aqua); }
+  .method p { color: var(--sub); font-size: 14.5px; margin: 10px 0 0; }
+
+  /* leaderboard */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 760px; }
+  th {
+    text-align: left; color: var(--faint); font: 11px var(--mono);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 12px 14px; border-bottom: 1px solid var(--line);
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.who { font-weight: 600; }
+  td.who .sub { font-weight: 400; }
+  .badge {
+    display: inline-block; font: 10.5px var(--mono); border-radius: 999px; padding: 2px 9px;
+    border: 1px solid var(--line); color: var(--sub); white-space: nowrap;
+  }
+  .badge.dry { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 40%, var(--line)); }
+  .badge.real { color: var(--aqua); border-color: color-mix(in srgb, var(--aqua) 40%, var(--line)); }
+  td.good { color: var(--green); font-weight: 600; }
+  td.bad { color: var(--red); }
+  td .bar {
+    display: inline-block; height: 8px; border-radius: 4px; background: var(--grad); margin-left: 8px;
+    vertical-align: middle;
+  }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover td { background: color-mix(in srgb, var(--violet) 4%, transparent); }
+
+  /* detail */
+  .detail { display: none; background: var(--bg); border-top: 1px dashed var(--line); }
+  .detail.open { display: table-row; }
+  .detail .inner { padding: 18px 20px; }
+  .chart { overflow-x: auto; margin-bottom: 10px; }
+  .legend { display: flex; gap: 22px; font-size: 13px; color: var(--sub); margin-bottom: 8px; }
+  .legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+
+  /* submit */
+  .steps { counter-reset: step; display: grid; gap: 12px; }
+  .step {
+    counter-increment: step; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 18px 14px 56px; position: relative; font-size: 14.5px;
+  }
+  .step::before {
+    content: counter(step); position: absolute; left: 16px; top: 14px;
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    border: 1px solid var(--line); color: var(--aqua); font: 12.5px var(--mono);
+  }
+  .code {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; font: 13px var(--mono); color: var(--aqua); margin-top: 8px;
+    overflow-x: auto; white-space: pre; position: relative;
+  }
+  .code .cmt { color: var(--faint); }
+  .copy {
+    position: absolute; right: 8px; top: 8px; font: 11px var(--mono); cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel); color: var(--sub);
+    border-radius: 6px; padding: 2px 8px;
+  }
+  .copy:hover { color: var(--ink); border-color: var(--violet); }
+  footer {
+    border-top: 1px solid var(--line-soft); padding: 26px 24px 40px;
+    text-align: center; color: var(--faint); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div class="brand"><span class="grad-text">◈ memento</span> · memory benchmark</div>
+    <nav>
+      <a href="#leaderboard">leaderboard</a>
+      <a href="#method">method</a>
+      <a href="#submit">submit your run</a>
+      <a href="demo.html">sample report</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <span class="kicker">the benchmark only memento can produce</span>
+    <h1>Every agent can code.<br /><span class="grad-text">This one gets cheaper as it learns.</span></h1>
+    <p>
+      The memory benchmark measures the core thesis with numbers: run a family of similar tasks with no
+      memory (<b>cold</b>), then again recalling everything earlier tasks taught (<b>warm</b>).
+      The gap between the two curves is what accumulated lessons are worth — in turns and tokens.
+    </p>
+    <div class="stats" id="stats">
+      <div class="card"><div class="n grad-text" id="s-runs">—</div><div class="l">submitted runs</div></div>
+      <div class="card"><div class="n grad-text" id="s-best">—</div><div class="l">best turn savings</div></div>
+      <div class="card"><div class="n grad-text" id="s-avg">—</div><div class="l">average token savings</div></div>
+      <div class="card"><div class="n grad-text" id="s-real">—</div><div class="l">runs on real models</div></div>
+    </div>
+  </section>
+
+  <section id="method">
+    <h2>Method <span class="anchor">— two curves, one delta</span></h2>
+    <div class="method">
+      <div class="card cold">
+        <div class="tag">cold — the memoryless baseline</div>
+        <p>
+          A pristine copy of the repo, zero lessons recalled, no reflection afterwards. This is what a
+          memoryless agent costs — every task solved from scratch.
+        </p>
+      </div>
+      <div class="card warm">
+        <div class="tag">warm — recalled lessons</div>
+        <p>
+          The shared run directory: every earlier task's lessons are recalled into the system prompt and
+          every run reflects afterwards. This is what memento actually costs.
+        </p>
+      </div>
+    </div>
+    <p class="dim" style="font-size:13.5px;margin-top:14px">
+      Reproducibility: <span class="mono">--dry</span> runs use a deterministic scripted provider (zero network, identical
+      every time). Real-model runs record provider, model and the tasks.json family. Submission is one command — see below.
+    </p>
+  </section>
+
+  <section id="leaderboard">
+    <h2>Leaderboard <span class="anchor">— sorted by turn savings</span></h2>
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>run</th><th>provider / model</th><th>tasks</th>
+            <th>turns saved</th><th>tokens saved</th><th>report</th>
+          </tr>
+        </thead>
+        <tbody id="lb"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="submit">
+    <h2>Submit your run <span class="anchor">— one command, then a PR</span></h2>
+    <div class="steps">
+      <div class="step">
+        Pick a family of similar tasks and run the benchmark (deterministic dry run or a real model):
+        <div class="code"><span class="cmt"># dry: zero network, reproducible</span>
+memento bench tasks.json --json --dry &gt; bench-out.json</div>
+      </div>
+      <div class="step">
+        Merge the run into the leaderboard data (re-runs replace your previous entry):
+        <div class="code"><span class="cmt"># report is optional — point at your committed --report HTML</span>
+node scripts/merge-bench.mjs bench-out.json your-handle --report benchmarks/your-report.html</div>
+      </div>
+      <div class="step">
+        Open a PR with the changed <span class="mono">site/benchmarks/results.json</span> (+ report file).
+        The page is static — no backend, no credentials, nothing but numbers.
+      </div>
+    </div>
+    <p class="dim" style="font-size:13.5px;margin-top:14px">
+      Rules: every entry must be reproducible (record provider, model, tasks.json and the dry flag).
+      Same submitter + provider + model + task family = one entry, refreshed in place.
+    </p>
+  </section>
+</main>
+
+<footer>
+  <span class="mono">memento bench</span> · plain HTML + JSON, no CDN — data at
+  <a href="results.json" class="mono">site/benchmarks/results.json</a> · see
+  <a href="https://github.com/earendil-works/memento">the repo</a> to run your own
+</footer>
+
+<script>
+(async function () {
+  let data;
+  try {
+    data = await (await fetch("results.json", { cache: "no-store" })).json();
+  } catch {
+    document.getElementById("lb").innerHTML = '<tr><td colspan="6" class="dim">cannot load results.json</td></tr>';
+    return;
+  }
+  const entries = data.entries || [];
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const k = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n));
+  const saved = (p) => (p > 0 ? "−" + p + "%" : p === 0 ? "±0%" : "+" + Math.abs(p) + "%");
+  const bar = (p) => Math.max(6, Math.min(110, Math.abs(p) * 2.2)).toFixed(0);
+
+  // headline stats
+  const real = entries.filter((e) => !e.dry);
+  const best = entries.reduce((m, e) => Math.max(m, e.turnsSavedPct), 0);
+  const avg = entries.length ? Math.round(entries.reduce((s, e) => s + e.tokensSavedPct, 0) / entries.length) : 0;
+  document.getElementById("s-runs").textContent = entries.length;
+  document.getElementById("s-best").textContent = "−" + best + "%";
+  document.getElementById("s-avg").textContent = "−" + avg + "%";
+  document.getElementById("s-real").textContent = real.length;
+
+  const sorted = [...entries].sort((a, b) => b.turnsSavedPct - a.turnsSavedPct);
+  const tbody = document.getElementById("lb");
+  tbody.innerHTML = sorted.map((e, i) => {
+    const rows = [
+      `<tr class="clickable" data-i="${i}">`,
+      `<td class="who">${esc(e.submitter)}<div class="sub dim">${esc(e.date)}</div></td>`,
+      `<td><span class="mono">${esc(e.provider)}</span>${e.model ? " / <span class='mono'>" + esc(e.model) + "</span>" : ""}<br><span class="badge ${e.dry ? "dry" : "real"}">${e.dry ? "dry · deterministic" : "real model"}</span></td>`,
+      `<td class="dim">${esc((e.tasks || []).length)}</td>`,
+      `<td class="${e.turnsSavedPct > 0 ? "good" : e.turnsSavedPct < 0 ? "bad" : "dim"}">${saved(e.turnsSavedPct)}<span class="bar" style="width:${bar(e.turnsSavedPct)}px"></span></td>`,
+      `<td class="${e.tokensSavedPct > 0 ? "good" : e.tokensSavedPct < 0 ? "bad" : "dim"}">${saved(e.tokensSavedPct)}</td>`,
+      `<td>${e.report ? '<a href="' + esc(e.report) + '" class="mono">open ↗</a>' : '<span class="dim">—</span>'}</td>`,
+      `</tr>`,
+      `<tr class="detail" data-i="${i}"><td colspan="6"><div class="inner">${detailHtml(e)}</div></td></tr>`,
+    ];
+    return rows.join("");
+  }).join("");
+
+  tbody.querySelectorAll("tr.clickable").forEach((tr) => {
+    tr.addEventListener("click", () => {
+      const i = tr.dataset.i;
+      const d = tbody.querySelector('tr.detail[data-i="' + i + '"]');
+      if (d) d.classList.toggle("open");
+    });
+  });
+
+  function detailHtml(e) {
+    const tasks = e.tasks || [];
+    if (!tasks.length) return '<span class="dim">no per-task detail</span>';
+    const W = 640, H = 150, pad = 8;
+    const maxTurns = Math.max(...tasks.map((t) => Math.max(t.cold.turns, t.warm.turns)), 1);
+    const maxTok = Math.max(...tasks.map((t) => t.cold.inputTokens), 1);
+    const x = (i) => (tasks.length === 1 ? W / 2 : pad + (i * (W - 2 * pad)) / (tasks.length - 1));
+    const yT = (v) => H - pad - (v / maxTurns) * (H - 2 * pad);
+    const yK = (v) => H - pad - (v / maxTok) * (H - 2 * pad);
+    const ptsT = tasks.map((t, i) => x(i).toFixed(1) + "," + yT(t.warm.turns).toFixed(1)).join(" ");
+    const ptsK = tasks.map((t, i) => x(i).toFixed(1) + "," + yK(t.warm.inputTokens).toFixed(1)).join(" ");
+    const dotsT = tasks.map((t, i) => `<circle cx="${x(i).toFixed(1)}" cy="${yT(t.warm.turns).toFixed(1)}" r="3.5" fill="var(--violet)"><title>${esc(t.name)}: ${t.warm.turns} turns</title></circle>`).join("");
+    const dotsK = tasks.map((t, i) => `<circle cx="${x(i).toFixed(1)}" cy="${yK(t.warm.inputTokens).toFixed(1)}" r="3.5" fill="var(--aqua)"><title>${esc(t.name)}: ${k(t.warm.inputTokens)} tokens</title></circle>`).join("");
+    const rows = tasks.map((t) => {
+      const ts = t.cold.turns > 0 ? Math.round(((t.cold.turns - t.warm.turns) / t.cold.turns) * 100) : 0;
+      const ks = t.cold.inputTokens > 0 ? Math.round(((t.cold.inputTokens - t.warm.inputTokens) / t.cold.inputTokens) * 100) : 0;
+      return `<tr><td class="name mono">${esc(t.name)}</td><td class="mono">${t.cold.turns}</td><td class="mono">${k(t.cold.inputTokens)}</td><td class="mono strong" style="color:var(--aqua)">${t.warm.turns}</td><td class="mono strong" style="color:var(--aqua)">${k(t.warm.inputTokens)}</td><td class="${ts > 0 ? "good" : "dim"}">${saved(ts)}</td><td class="${ks > 0 ? "good" : "dim"}">${saved(ks)}</td></tr>`;
+    }).join("");
+    return (
+      '<div class="legend"><span><span class="sw" style="background:var(--violet)"></span>warm turns per task</span><span><span class="sw" style="background:var(--aqua)"></span>warm input tokens per task</span></div>' +
+      '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="warm learning curve">' +
+      '<polyline points="' + ptsT + '" fill="none" stroke="var(--violet)" stroke-width="2.5" stroke-linejoin="round"/>' + dotsT +
+      '<polyline points="' + ptsK + '" fill="none" stroke="var(--aqua)" stroke-width="2.5" stroke-linejoin="round"/>' + dotsK +
+      "</svg></div>" +
+      '<div class="chart"><table style="min-width:0"><thead><tr><th>task</th><th>cold turns</th><th>cold tokens</th><th>warm turns</th><th>warm tokens</th><th>turns saved</th><th>tokens saved</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
+      '<div class="dim" style="font-size:12.5px;margin-top:8px">task family: ' + esc(e.taskFamily || "—") + "</div>"
+    );
+  }
+})();
+</script>
+</body>
+</html>

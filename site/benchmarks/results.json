@@ -1,0 +1,23 @@
+{
+  "$comment": "Memory benchmark leaderboard data. Shape: one entry per submitted run. Append your entry via scripts/merge-bench.mjs (or by hand) and open a PR. Every entry must be reproducible: record the tasks.json family, provider, model and dry flag.",
+  "entries": [
+    {
+      "submitter": "memento-team",
+      "provider": "bench-dry",
+      "model": "deterministic mock",
+      "date": "2026-09-22",
+      "dry": true,
+      "taskFamily": "web-api hardening (rate-limit, idempotency, logging, cors, cache)",
+      "turnsSavedPct": 50,
+      "tokensSavedPct": 44,
+      "report": "demo.html",
+      "tasks": [
+        { "name": "rate-limit", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 2, "inputTokens": 2500 } },
+        { "name": "idempotency", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } },
+        { "name": "logging", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } },
+        { "name": "cors", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } },
+        { "name": "cache", "cold": { "turns": 2, "inputTokens": 2500 }, "warm": { "turns": 1, "inputTokens": 1400 } }
+      ]
+    }
+  ]
+}

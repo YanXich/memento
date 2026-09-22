@@ -41,7 +41,8 @@
     "check": "npm run typecheck && npm run test",
     "demo": "node scripts/demo.mjs",
     "stress:memory": "node scripts/stress-memory.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "merge-bench": "node scripts/merge-bench.mjs"
   },
   "keywords": [
     "ai",
