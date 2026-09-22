@@ -8,6 +8,7 @@ import { VERSION } from "./version.ts";
 import { runTask } from "./cli/commands/run.ts";
 import { planTask } from "./cli/commands/plan.ts";
 import { resumeTask } from "./cli/commands/resume.ts";
+import { chatTask } from "./cli/commands/chat.ts";
 import { benchTask } from "./cli/commands/bench.ts";
 import { specDecisionCmd, specInit, specShowCmd, specStatusCmd, specVerifyCmd } from "./cli/commands/spec.ts";
 import { lessonsCmd, memoryExportCmd, memoryImportCmd, rememberCmd } from "./cli/commands/memory.ts";
@@ -87,6 +88,32 @@ program
       ...(opts.provider ? { provider: opts.provider } : {}),
       ...(opts.model ? { model: opts.model } : {}),
       yes: Boolean(opts.yes),
+    });
+  });
+
+program
+  .command("chat")
+  .description("interactive session — chat with the agent; each exchange is remembered")
+  .option(...cwdOption)
+  .option("-p, --provider <id>", "provider id")
+  .option("-m, --model <id>", "model id")
+  .option("--max-turns <n>", "hard cap on agent turns per message", (v) => parseInt(v, 10))
+  .option("--temperature <n>", "sampling temperature", (v) => parseFloat(v))
+  .option("-y, --yes", "approve all tool calls without asking")
+  .option("--session <id>", "continue an existing session (id or prefix)")
+  .option("--show-thinking", "print the model's thinking stream")
+  .option("--verbose-tools", "print full tool outputs instead of previews")
+  .action(async (opts) => {
+    process.exitCode = await chatTask({
+      root: rootOf(opts),
+      ...(opts.provider ? { provider: opts.provider } : {}),
+      ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.maxTurns ? { maxTurns: opts.maxTurns } : {}),
+      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+      ...(opts.session ? { session: opts.session } : {}),
+      yes: Boolean(opts.yes),
+      showThinking: Boolean(opts.showThinking),
+      verboseTools: Boolean(opts.verboseTools),
     });
   });
 

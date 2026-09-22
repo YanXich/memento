@@ -160,6 +160,10 @@ export interface ApproverOptions {
   sessionApproved?: Set<string>;
   /** Abort a pending question (Ctrl-C) — resolves as a denial instead of hanging. */
   signal?: AbortSignal;
+  /** Reuse an existing readline interface (e.g. the chat REPL's) so approval
+   *  prompts share the same input stream. The owner keeps responsibility for
+   *  closing it — `close()` never closes a shared interface. */
+  rl?: Interface;
 }
 
 export interface Approver {
@@ -173,7 +177,8 @@ export function createApprover(opts: ApproverOptions = {}): Approver {
   const sessionApproved = opts.sessionApproved ?? new Set<string>();
   const auto = new Set(opts.autoApprove ?? []);
   const interactive = Boolean(process.stdin.isTTY) && !opts.yes;
-  let rl: Interface | null = null;
+  const shared = Boolean(opts.rl);
+  let rl: Interface | null = opts.rl ?? null;
 
   const getRl = (): Interface => {
     if (!rl) {
@@ -235,7 +240,7 @@ export function createApprover(opts: ApproverOptions = {}): Approver {
     },
 
     close() {
-      rl?.close();
+      if (!shared) rl?.close();
       rl = null;
     },
   };
