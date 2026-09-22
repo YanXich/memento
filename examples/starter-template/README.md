@@ -14,22 +14,17 @@ memento bench tasks.json --dry               # see the harness without an API ke
 memento web           # watch sessions, memory, spec and plugins in a browser
 ```
 
-No git yet? The same template ships inside the npm package:
+No git yet? The same template ships inside the npm package — `memento new`
+scaffolds it without a clone:
 
 ```bash
-# macOS / Linux
-cp -r "$(npm root -g)/memento-agent/examples/starter-template" my-project
-mv my-project/gitignore my-project/.gitignore
+memento new my-project
 cd my-project
-
-# Windows (PowerShell)
-Copy-Item "$((npm root -g).Trim())\memento-agent\examples\starter-template" my-project -Recurse
-ren my-project\gitignore .gitignore
 ```
 
-(`gitignore` is the template's `.gitignore` — npm strips dotfiles from
-packages, so the rename restores it: `.memento/*` stays out of your repo,
-`.memento/spec/` stays in.)
+`memento new` restores the template's `.gitignore` (npm strips dotfiles from
+packages, so the template stores it as `gitignore`), stamps the project name
+into this README, and runs `git init` for you (`--no-git` to skip).
 
 ## What is in here
 

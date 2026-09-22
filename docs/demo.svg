@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 560" role="img" aria-label="memento terminal demo: run, learn, remember">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141232"/>
+      <stop offset="1" stop-color="#0d0b1f"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#6fe3d0"/>
+    </linearGradient>
+    <style>
+      .term { font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, Menlo, monospace; }
+      .row { opacity: 0; }
+      .r1  { animation: r1 18s linear infinite; }
+      .r2  { animation: r2 18s linear infinite; }
+      .r3  { animation: r3 18s linear infinite; }
+      .r4  { animation: r4 18s linear infinite; }
+      .r5  { animation: r5 18s linear infinite; }
+      .r6  { animation: r6 18s linear infinite; }
+      .r7  { animation: r7 18s linear infinite; }
+      .r8  { animation: r8 18s linear infinite; }
+      .r9  { animation: r9 18s linear infinite; }
+      .r10 { animation: r10 18s linear infinite; }
+      .r11 { animation: r11 18s linear infinite; }
+      .r12 { animation: r12 18s linear infinite; }
+      .r13 { animation: r13 18s linear infinite; }
+      @keyframes r1  { 0%, 6.7% { opacity: 0; } 9%, 100% { opacity: 1; } }
+      @keyframes r2  { 0%, 12.8% { opacity: 0; } 15%, 100% { opacity: 1; } }
+      @keyframes r3  { 0%, 18.9% { opacity: 0; } 21%, 100% { opacity: 1; } }
+      @keyframes r4  { 0%, 25% { opacity: 0; } 27.2%, 100% { opacity: 1; } }
+      @keyframes r5  { 0%, 31.1% { opacity: 0; } 33.3%, 100% { opacity: 1; } }
+      @keyframes r6  { 0%, 37.2% { opacity: 0; } 39.4%, 100% { opacity: 1; } }
+      @keyframes r7  { 0%, 43.3% { opacity: 0; } 45.6%, 100% { opacity: 1; } }
+      @keyframes r8  { 0%, 49.4% { opacity: 0; } 51.7%, 100% { opacity: 1; } }
+      @keyframes r9  { 0%, 55.6% { opacity: 0; } 57.8%, 100% { opacity: 1; } }
+      @keyframes r10 { 0%, 61.7% { opacity: 0; } 63.9%, 100% { opacity: 1; } }
+      @keyframes r11 { 0%, 67.8% { opacity: 0; } 70%, 100% { opacity: 1; } }
+      @keyframes r12 { 0%, 73.9% { opacity: 0; } 76.1%, 100% { opacity: 1; } }
+      @keyframes r13 { 0%, 80% { opacity: 0; } 82.2%, 100% { opacity: 1; } }
+      .cursor { animation: blink 1s steps(2, start) infinite; }
+      @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0; } }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="860" height="560" rx="16" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="859" height="559" rx="16" fill="none" stroke="#a78bfa" stroke-opacity="0.35" stroke-width="1"/>
+
+  <!-- title bar -->
+  <circle cx="42" cy="36" r="6" fill="#ff5f57"/>
+  <circle cx="66" cy="36" r="6" fill="#febc2e"/>
+  <circle cx="90" cy="36" r="6" fill="#28c840"/>
+  <text x="200" y="41" class="term" font-size="13" fill="#8b86b8">memento — deepseek/deepseek-chat · ~/work/api</text>
+  <g transform="translate(788,22)">
+    <circle cx="14" cy="14" r="11" fill="none" stroke="url(#ring)" stroke-width="2.6"/>
+    <circle cx="14" cy="14" r="4" fill="#6fe3d0"/>
+  </g>
+  <line x1="20" y1="60" x2="840" y2="60" stroke="#a78bfa" stroke-opacity="0.25" stroke-width="1"/>
+
+  <text x="40" y="92" class="term row r1" font-size="13.5" fill="#e6e4f5"><tspan fill="#6fe3d0">$</tspan> memento run "add rate limiting to the login endpoint"</text>
+  <text x="40" y="118" class="term row r2" font-size="13.5" fill="#a78bfa">▸ recalled 2 lesson(s) from memory</text>
+  <text x="40" y="144" class="term row r3" font-size="13.5" fill="#a78bfa">▸ indexing repository · building</text>
+  <text x="40" y="170" class="term row r4" font-size="13.5" fill="#e6e4f5">◈ agent started <tspan fill="#8b86b8">· model deepseek-chat</tspan></text>
+  <text x="40" y="196" class="term row r5" font-size="13.5" fill="#6fe3d0">⏺ read(src/auth/login.ts)  read(src/middleware/index.ts)</text>
+  <text x="40" y="222" class="term row r6" font-size="13.5" fill="#8b86b8">── turn 2 ──</text>
+  <text x="40" y="248" class="term row r7" font-size="13.5" fill="#6fe3d0">⏺ write(src/middleware/rate-limit.ts)  edit(src/auth/login.ts)</text>
+  <text x="40" y="274" class="term row r8" font-size="13.5" fill="#6fe3d0">⏺ bash(npm test) <tspan fill="#28c840">→ 120 passed</tspan></text>
+  <text x="40" y="300" class="term row r9" font-size="13.5" fill="#28c840">◈ agent finished: done</text>
+  <text x="40" y="326" class="term row r10" font-size="13.5" fill="#a78bfa">▸ reflecting on the session <tspan fill="#8b86b8">(self-improvement pass)</tspan></text>
+  <text x="40" y="352" class="term row r11" font-size="13.5" fill="#e6e4f5">  +1 new lesson <tspan fill="#a78bfa">[pattern]</tspan> login routes chain through middleware/index.ts</text>
+  <text x="40" y="378" class="term row r12" font-size="13.5" fill="#f5c26b">suggested commit <tspan fill="#8b86b8">feat: rate-limit the login endpoint</tspan></text>
+  <text x="40" y="404" class="term row r13" font-size="13.5" fill="#e6e4f5">◈ session s_h8x2kd91mf <tspan fill="#8b86b8">· done · 3 turn(s) · 8.2k in / 1.1k out</tspan></text>
+  <rect x="40" y="500" width="10" height="15" class="cursor" fill="#6fe3d0"/>
+</svg>

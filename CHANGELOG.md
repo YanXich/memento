@@ -81,6 +81,14 @@ All notable changes to memento are documented here. Format follows
   logs and the lesson store, with pid-liveness stale-lock stealing.
 - The stream parser emits `toolcall_name_delta` so live tool-call renames
   surface in the workbench UI.
+- `memento new <dir>` — scaffold a new project from the bundled starter
+  template (spec + bench tasks + walkthrough), with no clone involved: it
+  restores the `.gitignore` npm strips from packages, stamps the project
+  name into the README, and runs `git init` (`--no-git` to skip; `--force`
+  to scaffold over a non-empty directory; `--template <dir>` to use your
+  own). Absolute paths work, `..` is rejected.
+- README opens with an animated, brand-styled terminal demo
+  (`docs/demo.svg`) — CSS-only, no GIF asset, no CDN, renders on GitHub.
 
 ## [0.2.0] — the agent that learns, measured
 

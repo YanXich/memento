@@ -12,7 +12,11 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-164%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-193%20passing-success.svg" />
+</p>
+
+<p align="center">
+  <img src="docs/demo.svg" alt="memento run — animated terminal demo" width="820" />
 </p>
 
 ```console
@@ -143,7 +147,10 @@ Memento speaks the ecosystem's language, in both directions:
 # Requires Node ≥ 20.10
 npm install -g memento-agent
 
-# In your repository:
+# New project? Start from the template:
+memento new my-app && cd my-app
+
+# In an existing repository:
 cd your-project
 memento init                 # scaffold .memento/
 export DEEPSEEK_API_KEY=…    # or OPENAI_API_KEY / ANTHROPIC_API_KEY
@@ -157,12 +164,12 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 184 tests
+npm run check      # typecheck + 193 tests
 npm run build      # dist/cli.js, ~160 KB
 node dist/cli.js run "…"
 ```
 
-New to memento? [examples/starter-template/](examples/starter-template/) is a ready-to-ride project — spec, bench tasks, and a 15-minute walkthrough of the whole loop.
+New to memento? `memento new my-app` scaffolds [examples/starter-template/](examples/starter-template/) — spec, bench tasks, and a 15-minute walkthrough of the whole loop.
 
 ---
 
@@ -216,6 +223,7 @@ A coding agent runs commands on your machine. Memento's defaults are conservativ
 | `memento plan <task>` | draft a Plan/Act split for review before anything is executed (`-y` approves and runs it) |
 | `memento undo` | roll back the last write batch (write/edit/apply_patch snapshots) |
 | `memento init` | scaffold `.memento/` |
+| `memento new <dir>` | scaffold a new project from the bundled starter template — spec + bench tasks + walkthrough (`--force`, `--no-git`, `--template <dir>`) |
 | `memento doctor` | diagnose runtime / config / providers / spec / memory / plugins |
 | `memento spec init` | scan repo, draft constitution + architecture + feature overview (`--scan-only` for the deterministic scan alone) |
 | `memento spec verify` | run deterministic checkers against the tree (`--json`) |

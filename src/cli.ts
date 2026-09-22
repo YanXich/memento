@@ -18,6 +18,7 @@ import { webCmd } from "./cli/commands/web.ts";
 import { serveMcp } from "./cli/commands/serve.ts";
 import { undoCmd } from "./cli/commands/undo.ts";
 import { pluginsTask } from "./cli/commands/plugins.ts";
+import { newTask } from "./cli/commands/new.ts";
 
 const program = new Command();
 
@@ -423,6 +424,24 @@ program
     const interactive =
       opts.interactive === true || (opts.interactive !== false && !opts.provider && Boolean(process.stdin.isTTY && process.stdout.isTTY));
     process.exitCode = await initCmd(rootOf(opts), Boolean(opts.force), opts.provider, { interactive });
+  });
+
+program
+  .command("new")
+  .description("scaffold a new project from the bundled starter template (spec + bench tasks + walkthrough)")
+  .argument("<dir>", "target directory name ('.' for the current directory)")
+  .option(...cwdOption)
+  .option("--template <dir>", "use an explicit template directory instead of the bundled one")
+  .option("--force", "scaffold over a non-empty target directory")
+  .option("--no-git", "skip `git init` in the new project")
+  .action((dir: string, opts) => {
+    process.exitCode = newTask({
+      dir,
+      root: rootOf(opts),
+      ...(opts.template ? { templateDir: opts.template } : {}),
+      force: Boolean(opts.force),
+      git: opts.git,
+    });
   });
 
 program.parseAsync(process.argv).catch((err: unknown) => {

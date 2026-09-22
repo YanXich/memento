@@ -12,7 +12,11 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-164%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-193%20passing-success.svg" />
+</p>
+
+<p align="center">
+  <img src="docs/demo.svg" alt="memento run — 动画终端演示" width="820" />
 </p>
 
 ```console
@@ -139,7 +143,10 @@ Memento 说生态的语言，而且双向都会：
 # 需要 Node ≥ 20.10
 npm install -g memento-agent
 
-# 在你的仓库里：
+# 新项目？从模板开始：
+memento new my-app && cd my-app
+
+# 在已有仓库里：
 cd your-project
 memento init                 # 脚手架 .memento/
 export DEEPSEEK_API_KEY=…    # 也可以用 OPENAI_API_KEY / ANTHROPIC_API_KEY
@@ -158,7 +165,7 @@ npm run build      # dist/cli.js，约 160 KB
 node dist/cli.js run "…"
 ```
 
-第一次用 memento？[examples/starter-template/](examples/starter-template/) 是一个开箱即骑的模板项目——自带 spec、bench 任务族和 15 分钟全流程导览。
+第一次用 memento？`memento new my-app` 直接脚手架 [examples/starter-template/](examples/starter-template/)——自带 spec、bench 任务族和 15 分钟全流程导览。
 
 ---
 
@@ -212,6 +219,7 @@ memento show s_h8x2kd91mf     # 查看转录（任意唯一前缀即可）
 | `memento plan <task>` | 动手前先起草 Plan/Act 计划供审阅（`-y` 直接批准并执行） |
 | `memento undo` | 回滚上一批写入（write/edit/apply_patch 都有快照） |
 | `memento init` | 脚手架 `.memento/` |
+| `memento new <dir>` | 从内置 starter 模板脚手架新项目——spec + bench 任务 + 导览（`--force`、`--no-git`、`--template <dir>`） |
 | `memento doctor` | 诊断运行时/配置/供应商/规格/记忆/插件 |
 | `memento spec init` | 扫描仓库起草规格（`--scan-only` 只跑确定性扫描） |
 | `memento spec verify` | 确定性检查器对照目录树（`--json`） |
