@@ -12,7 +12,7 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-209%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-254%20passing-success.svg" />
 </p>
 
 <p align="center">
@@ -164,8 +164,8 @@ Prefer to hack on it?
 ```bash
 git clone <this repo> && cd memento
 npm install
-npm run check      # typecheck + 209 tests
-npm run build      # dist/cli.js, ~160 KB
+npm run check      # typecheck + 254 tests
+npm run build      # dist/cli.js, single-file ESM bundle
 node dist/cli.js run "…"
 ```
 

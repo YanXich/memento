@@ -125,7 +125,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 审计轮 4（正确性，+回归测试）：流重试失效修复（fetch 中断后 provider 流恢复）、工具名重复拼接修复（OpenAI 兼容网关跨 chunk 去重）、bench 暖链孤儿修复（失败时干净收尾）、ReDoS 防护复核
 - ✅ 审计轮 5（并发/性能，+11 测试）：token 估算单遍 O(n)（CJK 区间双权重）+ compact 增量缓存；文件锁 PID 活性检测（EPERM 容错 + 24h 陈旧界防 PID 重用 + TOCTOU 写后验证）；SSE 游标修剪防无界增长 + 崩溃锁不再误报 running；配置数组合并（autoApprove 并集/providers/mcpServers 按 key 深合并）；MCP 输出截断（16k chars）；vitest 超时稳定化
 - ✅ 审计轮 6（UX，+9 测试）：审批非交互拒绝改 stderr（管道 stdout 纯净）；审批 abort 监听器用完即清（长会话零泄漏）；shortId 拒绝采样消除模偏差；undo 快照 isInside 防前缀混淆；cmd.exe 参数 % 翻倍防环境变量展开
-- ✅ 品牌轮（web UI + 落地页浏览器实测）：workbench 六项修复（--faint 对比度 3.6→6.8:1 达 WCAG AA、窄屏 tabs 横向滚动、tab aria-current、sessions 表格滚动容器、Memory byKind 空状态占位、live-dot 非 running 停止脉冲）；落地页四项修复（375px 视口零溢出：nav 换行滚动 + 对比表滚动容器、--faint 对比度达标、测试徽章数字统一 252、og:image 品牌分享图生成）；双页浏览器实测全部 PASS、零 console 报错
+- ✅ 品牌轮（web UI + 落地页浏览器实测）：workbench 六项修复（--faint 对比度 3.6→6.8:1 达 WCAG AA、窄屏 tabs 横向滚动、tab aria-current、sessions 表格滚动容器、Memory byKind 空状态占位、live-dot 非 running 停止脉冲）；落地页四项修复（375px 视口零溢出：nav 换行滚动 + 对比表滚动容器、--faint 对比度达标、测试徽章数字统一到全量实测数（254）、og:image 品牌分享图生成）；双页浏览器实测全部 PASS、零 console 报错
 - ✅ 基准轮（bench 无 key 方案）：无模型时 bench 启动预检 fail-fast（不再空跑每个 cold 失败）+ 提示 --dry 零网络 demo；修复 warm/cold 副本丢失项目级 provider 配置（root workspace 传递）；--report 路径与 tasks 一致相对 workspace root；--dry 端到端实测：warm 曲线 2→1 turns / 2.5k→1.4k tokens、lessons 1→2→3 累积；bench 测试 10 个全绿
 
 ## 4. 取舍原则（每步都要问）

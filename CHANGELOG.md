@@ -4,6 +4,59 @@ All notable changes to memento are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project versions with
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — hardening audits 3–6
+
+### Security
+
+- Plugin names are sanitized before use in paths; plugin subdirectories can no
+  longer escape the plugin root.
+- Approval classifier hardened against shell metacharacter smuggling (`&`,
+  `$()`, backticks, unquoted redirection without spaces).
+- Symlink escapes are resolved via `realpath` down to the deepest existing
+  ancestor (`isInside`), closing prefix-confusion holes.
+
+### Fixed
+
+- Anthropic streaming tool-call IDs: `start` used the real id while `delta` /
+  `stop` used a synthetic one — every tool call on that provider failed.
+- Spec write path escape: the LLM can no longer overwrite arbitrary files via
+  `relPath` (`.memento/spec/` only, `..` / absolute paths / non-`.md` rejected).
+- Stream retry no longer silently loses the resumed stream after a mid-stream
+  drop; tool names are no longer duplicated across OpenAI-compatible gateway
+  chunks; bench warm-chain orphans are cleaned up on failure.
+- Token estimation is now a single O(n) pass with CJK-aware dual weights and
+  cached compaction estimates (previously O(n²) per message).
+- File locks gained pid-liveness detection (EPERM tolerant, 24h staleness
+  bound against PID reuse) and a TOCTOU-safe write verification.
+- SSE cursors are pruned as sessions finish; crashed-process locks no longer
+  misreport a session as running.
+- Config arrays (autoApprove, providers, mcpServers) merge by key instead of
+  clobbering.
+- MCP tool output is truncated (16k chars) so one noisy server can no longer
+  flood the agent context.
+- `shortId` uses rejection sampling — the first letters no longer carry a
+  ~13% modulo bias.
+- Undo snapshots use `isInside`, so a workspace-relative path can never
+  snapshot a file outside the workspace.
+- `cmd.exe` argument quoting doubles `%` so environment variables are not
+  expanded by the shell.
+- Non-interactive approval refusals go to stderr, keeping piped stdout clean;
+  approval abort listeners are removed after every prompt (no leak on long
+  runs).
+- Bench runs fail fast without a configured model instead of exhausting every
+  cold task first; `--report` resolves relative to the workspace root like
+  tasks files; warm/cold copies keep the project-level provider config.
+
+### Changed
+
+- Workbench UI: `--faint` contrast raised to WCAG AA, tabs scroll on narrow
+  screens, `aria-current` on the active tab, scrollable session table, empty
+  state for Memory by-kind cards, live dot stops pulsing when idle.
+- Landing page: 375px viewport overflows fixed, og:image added, badge counts
+  synced to the full suite (254 tests).
+- Test suite: 254 tests across 26 files; vitest timeout raised and Windows
+  temp-dir cleanup retries on EPERM/EBUSY under parallel load.
+
 ## [0.3.0] — the control room, CN providers, and the launch kit
 
 ### Fixed
