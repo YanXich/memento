@@ -18,6 +18,20 @@ import { combineSignals, describeHttpError, isAbortError, sseLines } from "./sse
 /** Hard cap on the whole request+stream — a hung gateway must not hang the agent. */
 const REQUEST_TIMEOUT_MS = 600_000;
 
+/**
+ * Hosts whose OpenAI-compatible API documents `stream_options.include_usage`.
+ * Older Ollama / LM Studio / strict self-hosted gateways reject unknown
+ * request fields outright — for them we omit the field instead of losing the
+ * whole request. Unknown hosts get a plain request (correctness first).
+ */
+const KNOWN_USAGE_HOSTS = new Set([
+  "api.openai.com",
+  "api.deepseek.com",
+  "api.moonshot.cn",
+  "open.bigmodel.cn",
+  "dashscope.aliyuncs.com",
+]);
+
 export interface OpenAiCompatOptions {
   id: string;
   label?: string;
@@ -97,11 +111,17 @@ export function createOpenAiCompatProvider(opts: OpenAiCompatOptions): LlmProvid
       );
     },
     async *stream(req: LlmRequest, o): AsyncIterable<StreamEvent> {
+      let usageHost = "";
+      try {
+        usageHost = new URL(base).hostname;
+      } catch {
+        /* keep "" — unknown base means no stream_options */
+      }
       const body: Record<string, unknown> = {
         model: req.model,
         messages: [{ role: "system", content: req.system }, ...toWireMessages(req.messages)],
         stream: true,
-        stream_options: { include_usage: true },
+        ...(KNOWN_USAGE_HOSTS.has(usageHost) ? { stream_options: { include_usage: true } } : {}),
       };
       if (req.tools.length > 0) body.tools = toWireTools(req.tools);
       if (req.maxTokens) body.max_tokens = req.maxTokens;
@@ -191,11 +211,16 @@ export function createOpenAiCompatProvider(opts: OpenAiCompatOptions): LlmProvid
             }
             if (call.id && call.id !== state.id) state.id = call.id;
             if (call.function?.name) {
-              state.name += call.function.name;
+              // Idempotent merge: some gateways resend the full accumulated
+              // name on every fragment; appending blindly doubles it
+              // ("read" + "read" = "readread"). A fragment that starts with
+              // the current name replaces it, anything else appends.
+              const deltaName = call.function.name;
+              state.name = state.name && deltaName.startsWith(state.name) ? deltaName : state.name + deltaName;
               // Name fragments after the start? Some gateways chunk the name —
               // forward them so the kernel can repair its copy.
               if (state.started) {
-                yield { type: "toolcall_name_delta", id: state.id, nameDelta: call.function.name };
+                yield { type: "toolcall_name_delta", id: state.id, nameDelta: deltaName };
               }
             }
             if (typeof call.function?.arguments === "string" && call.function.arguments.length > 0) {

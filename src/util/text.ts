@@ -1,19 +1,28 @@
-/** Rough token estimate — 4 chars/token for latin, ~1.6 for CJK-heavy text. Good enough for budgeting. */
+/**
+ * Rough token estimate — 4 chars/token for latin, ~1.6 for CJK-heavy text.
+ * Good enough for budgeting. Runs in one code-point pass (no per-char
+ * regex, no surrogate-pair double counting) — this sits on the hot path of
+ * the compaction check, which rescans the whole conversation every turn.
+ */
 export function estimateTokens(text: string): number {
   if (!text) return 0;
   let cjk = 0;
+  let codePoints = 0;
   for (const ch of text) {
-    const code = ch.codePointAt(0)!;
-    if (
-      (code >= 0x4e00 && code <= 0x9fff) || // CJK unified
-      (code >= 0x3040 && code <= 0x30ff) || // kana
-      (code >= 0xac00 && code <= 0xd7af) // hangul
-    ) {
-      cjk++;
-    }
+    codePoints += 1;
+    if (isCjk(ch.codePointAt(0)!)) cjk += 1;
   }
-  const other = text.length - cjk;
+  const other = codePoints - cjk;
   return Math.ceil(other / 4 + (cjk * 10) / 16);
+}
+
+function isCjk(code: number): boolean {
+  return (
+    (code >= 0x3400 && code <= 0x9fff) || // CJK Ext A + unified
+    (code >= 0x3040 && code <= 0x30ff) || // hiragana + katakana
+    (code >= 0xac00 && code <= 0xd7af) || // hangul
+    (code >= 0xf900 && code <= 0xfaff) // compatibility ideographs
+  );
 }
 
 export function truncate(text: string, maxChars: number, note = "… [truncated]"): string {
@@ -28,6 +37,12 @@ export function truncateMiddle(text: string, maxChars: number): string {
   const head = text.slice(0, half);
   const tail = text.slice(-half);
   return `${head}\n… [${text.length - half * 2} chars omitted] …\n${tail}`;
+}
+
+/** Keep the tail of long text — for error output, where the cause is at the end. */
+export function truncateTail(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return `… [${text.length - maxChars} chars omitted] …\n` + text.slice(-maxChars);
 }
 
 /** Normalize text for fuzzy keyword matching: lowercase, strip punctuation, collapse ws. */

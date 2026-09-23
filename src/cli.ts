@@ -20,6 +20,7 @@ import { undoCmd } from "./cli/commands/undo.ts";
 import { pluginsTask } from "./cli/commands/plugins.ts";
 import { newTask } from "./cli/commands/new.ts";
 import { reviewTask } from "./cli/commands/review.ts";
+import { demoTask } from "./cli/commands/demo.ts";
 
 const program = new Command();
 
@@ -443,6 +444,14 @@ program
       force: Boolean(opts.force),
       git: opts.git,
     });
+  });
+
+program
+  .command("demo")
+  .description("run the full recall → gate → build → verify → reflect loop with a scripted model — no API key, no network")
+  .option("--workspace <dir>", "workspace to run in (default: a fresh temp dir)")
+  .action(async (opts) => {
+    process.exitCode = await demoTask({ ...(opts.workspace ? { workspace: opts.workspace } : {}) });
   });
 
 program

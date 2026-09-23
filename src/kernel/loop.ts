@@ -18,6 +18,7 @@ import type { SessionLog } from "./session.ts";
 import type { Tool, ToolContext, ToolResult } from "../tools/types.ts";
 import { ToolRegistry } from "../tools/types.ts";
 import { messageId } from "../util/ids.ts";
+import { estimateTokens } from "../util/text.ts";
 
 export interface LoopHooks {
   /** Called before each tool executes. Return a reason string to block it. */
@@ -266,8 +267,15 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
               // provider already announced a start, so repair the name in
               // place — executing a half-written tool name would fail
               // "unknown tool" for a call the model clearly intended.
+              // Idempotent merge: a gateway may resend the full accumulated
+              // name instead of just the new fragment, and appending blindly
+              // would double it ("readread"). A delta that starts with the
+              // current name replaces it; anything else appends.
               const state = pendingCalls.get(event.id);
-              if (state) state.name += event.nameDelta;
+              if (state) {
+                const delta = event.nameDelta;
+                state.name = state.name && delta.startsWith(state.name) ? delta : state.name + delta;
+              }
               break;
             }
             case "done":
@@ -289,7 +297,7 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
         } else {
           stopReason = "error";
           retryableError = true; // a mid-stream drop is worth one retry
-          text = text || `[stream failure] ${(err as Error).message}`;
+          lastError = (err as Error).message;
         }
       }
       const noProgress = !sawStart && !text && pendingCalls.size === 0;
@@ -445,7 +453,17 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
   }
 
   async function maybeCompact(context: Message[]): Promise<void> {
-    const approxTokens = context.reduce((acc, m) => acc + estimateMessageTokens(m), 0);
+    // Incremental cache: the conversation only grows during a run, so when
+    // neither the length nor the tail message changed since the last check
+    // the estimate is still valid — avoids rescanning megabytes of text
+    // every single turn.
+    const cached = compactCache.get(context);
+    const tail = context[context.length - 1];
+    const approxTokens =
+      cached && cached.count === context.length && cached.tail === tail
+        ? cached.tokens
+        : context.reduce((acc, m) => acc + estimateMessageTokens(m), 0);
+    compactCache.set(context, { count: context.length, tail, tokens: approxTokens });
     const budget = Math.floor(opts.model.contextWindow * compactAt);
     if (approxTokens < budget) return;
     const keepRecent = Math.max(4, Math.floor(context.length * 0.25));
@@ -483,21 +501,19 @@ export async function runLoop(opts: LoopOptions, context: Message[]): Promise<Lo
 function estimateMessageTokens(message: Message): number {
   // CJK characters pack roughly one token each; latin text about 4 chars
   // per token. Counting CJK separately keeps the compaction trigger honest
-  // for Chinese/Japanese/Korean conversations.
-  let chars = 0;
-  let cjk = 0;
+  // for Chinese/Japanese/Korean conversations. One code-point pass per
+  // block — no per-character regex.
+  let tokens = 0;
   for (const block of message.content) {
-    let text = "";
-    if (block.type === "text" || block.type === "thinking") text = block.text;
-    else if (block.type === "toolResult") text = block.content;
-    else if (block.type === "toolCall") text = (block.rawArgs ?? "") + block.name;
-    for (const ch of text) {
-      if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff]/.test(ch)) cjk += 1;
-      else chars += 1;
-    }
+    if (block.type === "text" || block.type === "thinking") tokens += estimateTokens(block.text);
+    else if (block.type === "toolResult") tokens += estimateTokens(block.content);
+    else if (block.type === "toolCall") tokens += estimateTokens((block.rawArgs ?? "") + block.name);
   }
-  return Math.ceil(chars / 4) + cjk + 8;
+  return tokens + 8; // message envelope: role + structural overhead
 }
+
+/** Per-run estimate cache for maybeCompact — keyed by the context array itself. */
+const compactCache = new WeakMap<Message[], { count: number; tail: Message | undefined; tokens: number }>();
 
 export { hasToolCalls };
 

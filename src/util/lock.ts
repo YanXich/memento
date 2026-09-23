@@ -6,8 +6,8 @@
  *  - Acquisition is atomic: `wx` = create-if-absent.
  *  - A lock whose pid is alive belongs to a peer → wait (bounded retries) or
  *    throw, never evict a legitimately running writer.
- *  - A lock whose pid is dead, corrupt, or our own is stolen — a crashed
- *    process never wedges the repository.
+ *  - A lock whose pid is dead, corrupt, our own, or absurdly old (pid reuse
+ *    after a crash) is stolen — a crashed process never wedges the repository.
  *  - Release only unlinks locks we still own; never a peer's.
  *
  * All operations are synchronous on purpose: the call sites are hot append
@@ -22,6 +22,15 @@ export interface FileLockOptions {
   retries?: number;
   retryDelayMs?: number;
 }
+
+/**
+ * Locks are never legitimately held this long: critical sections are one
+ * append or one rename. A lock older than this with a *live* pid means the
+ * pid was recycled by the OS — the original owner is gone, so steal it.
+ * Sessions keep their lock for a whole run (hours), so this must stay well
+ * above any plausible session length.
+ */
+export const STALE_LOCK_MS = 24 * 60 * 60 * 1000;
 
 /** Synchronous sleep — Atomics.wait is the standard Node way without busy-spin. */
 export function sleepSync(ms: number): void {
@@ -42,18 +51,21 @@ export function acquireFileLock(file: string, opts: FileLockOptions = {}): void 
   for (let attempt = 0; ; attempt++) {
     try {
       fs.writeFileSync(lockFile, JSON.stringify(own), { flag: "wx" });
-      return;
+      // A stealer may have raced our write (it read our half-written lock as
+      // corrupt, deleted it, and re-created its own). Verify ownership after
+      // the write; if we lost the race, back off and retry.
+      if (lockOwner(lockFile).pid === process.pid) return;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
-      const pid = lockOwnerPid(lockFile);
-      if (pid !== process.pid && pidAlive(pid)) {
+      const owner = lockOwner(lockFile);
+      if (owner.pid !== process.pid && pidAlive(owner.pid) && !isStale(owner.startedAt)) {
         if (attempt < retries) {
           sleepSync(retryDelayMs);
           continue;
         }
-        throw new Error(`file is locked by another memento process (pid ${pid}): ${file}`);
+        throw new Error(`file is locked by another memento process (pid ${owner.pid}): ${file}`);
       }
-      // Stale (dead pid), corrupt, or our own re-entry — steal it and retry.
+      // Stale (dead or recycled pid), corrupt, or our own re-entry — steal it and retry.
       try {
         fs.rmSync(lockFile, { force: true });
       } catch {
@@ -67,10 +79,21 @@ export function acquireFileLock(file: string, opts: FileLockOptions = {}): void 
 /** Release the lock, but only if this process still owns it. */
 export function releaseFileLock(file: string, ownPid: number): void {
   try {
-    if (lockOwnerPid(`${file}.lock`) === ownPid) fs.rmSync(`${file}.lock`, { force: true });
+    if (lockOwner(`${file}.lock`).pid === ownPid) fs.rmSync(`${file}.lock`, { force: true });
   } catch {
     /* lock already gone */
   }
+}
+
+/**
+ * Is `lockFile` held by a live, non-stale owner? Read-only check for
+ * observers (the web workbench uses it to show "running"): a leftover lock
+ * from a crashed process must not light up the UI forever.
+ */
+export function lockIsFresh(lockFile: string): boolean {
+  const owner = lockOwner(lockFile);
+  if (owner.pid <= 0) return false;
+  return pidAlive(owner.pid) && !isStale(owner.startedAt);
 }
 
 /** Run `fn` while holding the lock — the common critical-section shape. */
@@ -83,20 +106,29 @@ export function withFileLock<T>(file: string, fn: () => T, opts: FileLockOptions
   }
 }
 
-function lockOwnerPid(lockFile: string): number {
+function lockOwner(lockFile: string): { pid: number; startedAt: number } {
   try {
-    const owner = JSON.parse(fs.readFileSync(lockFile, "utf8")) as { pid?: unknown };
-    return typeof owner?.pid === "number" ? owner.pid : -1;
+    const owner = JSON.parse(fs.readFileSync(lockFile, "utf8")) as { pid?: unknown; startedAt?: unknown };
+    return {
+      pid: typeof owner?.pid === "number" ? owner.pid : -1,
+      startedAt: typeof owner?.startedAt === "number" ? owner.startedAt : 0,
+    };
   } catch {
-    return -1; // corrupt lock → stealable
+    return { pid: -1, startedAt: 0 }; // corrupt lock → stealable
   }
 }
 
+function isStale(startedAt: number): boolean {
+  return startedAt > 0 && Date.now() - startedAt > STALE_LOCK_MS;
+}
+
 function pidAlive(pid: number): boolean {
+  if (pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (err) {
+    // EPERM means the process exists but we lack permission — alive, not dead.
+    return (err as NodeJS.ErrnoException).code === "EPERM";
   }
 }

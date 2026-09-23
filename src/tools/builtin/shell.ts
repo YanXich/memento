@@ -8,7 +8,7 @@ import type { ChildProcess } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { z } from "zod";
 import type { Tool, ToolContext } from "../types.ts";
-import { classifyCommand } from "../guard.ts";
+import { classifyCommand, commandTouchesSecrets } from "../guard.ts";
 import { truncate } from "../../util/text.ts";
 
 const MAX_OUTPUT = 30_000;
@@ -67,15 +67,19 @@ export function defaultShell(): ShellSpec {
 export const bashTool: Tool = {
   name: "bash",
   description:
-    "Run a shell command in the workspace and return its combined output. Uses PowerShell on Windows, sh elsewhere. Read-only commands (ls, cat, git status, test runners…) run directly; anything that writes or is not recognizably read-only — and every destructive command — requires explicit approval.",
+    "Run a shell command in the workspace and return its combined output. Uses PowerShell on Windows, sh elsewhere. Read-only commands (ls, cat, git status, test runners…) run directly; anything that writes or is not recognizably read-only — every destructive command, and anything touching secret files (.env, keys) — requires explicit approval.",
   schema: z.object({
     command: z.string().describe("Command to run"),
     timeout_ms: z.number().int().min(1000).max(600_000).optional().describe("Timeout in ms (default 120000)"),
     purpose: z.string().optional().describe("One-line reason shown in the approval prompt"),
   }),
   requiresApproval: (args: unknown) => {
-    const verdict = classifyCommand(String((args as { command?: unknown }).command ?? ""));
-    return verdict.dangerous || verdict.mutating;
+    const command = String((args as { command?: unknown }).command ?? "");
+    const verdict = classifyCommand(command);
+    if (verdict.dangerous || verdict.mutating) return true;
+    // Read-only commands that would print secret files (cat .env, type id_rsa)
+    // still need a human — "read-only" says nothing about what leaves the machine.
+    return commandTouchesSecrets(command);
   },
   async execute(args: { command: string; timeout_ms?: number; purpose?: string }, ctx: ToolContext) {
     const timeout = args.timeout_ms ?? 120_000;

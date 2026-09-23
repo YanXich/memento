@@ -22,6 +22,10 @@ import { hasPluginFiles, loadPlugins } from "../plugins/loader.ts";
 import { jsonSchemaToZod } from "../tools/schema.ts";
 import type { McpClient, McpServerConfig } from "../mcp/client.ts";
 import { readJsonIfExists } from "../util/paths.ts";
+import { truncate, truncateTail } from "../util/text.ts";
+
+/** Cap for MCP tool output before it reaches the model context (~4k tokens). */
+const MCP_OUTPUT_MAX_CHARS = 16_000;
 
 export interface Workspace {
   root: string;
@@ -129,7 +133,11 @@ async function connectAndBridge(ws: Workspace, cfg: McpServerConfig): Promise<Mc
         mutating: !trusted.has(info.name),
         async execute(args) {
           const res = await client.callTool(info.name, args as Record<string, unknown>);
-          return { output: res.text, ...(res.isError ? { isError: true } : {}) };
+          // External tools can dump unbounded text (logs, DB dumps) — cap it
+          // before it reaches the model context. Errors keep their full tail
+          // (the last chunk is where the stack trace lives).
+          const out = res.isError ? truncateTail(res.text, MCP_OUTPUT_MAX_CHARS) : truncate(res.text, MCP_OUTPUT_MAX_CHARS);
+          return { output: out, ...(res.isError ? { isError: true } : {}) };
         },
       });
     }

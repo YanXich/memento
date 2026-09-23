@@ -36,7 +36,9 @@ the first task pays the discovery cost, every later task in the family reuses it
 # deterministic, zero network — great for CI and a first taste
 memento bench tasks.json --dry
 
-# real model (uses your configured provider, or pass --provider/--model)
+# real model (uses your configured provider, or pass --provider/--model);
+# without a working model the harness fails fast before any task runs and
+# points you at the --dry demo
 memento bench tasks.json
 
 # machine-readable output (feeds the leaderboard merge script)

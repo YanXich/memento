@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **209/209 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场 + 审计轮 2：跨进程锁/ReDoS 防护/流解析修复/spec gate 白名单 + 产品轮 1/2/3：memento new 脚手架 + memento review CI 审查 + Live 控制室 SSE 流）· 构建成功。
+**验证状态**：typecheck 干净 · **254/254 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场 + 审计轮 2：跨进程锁/ReDoS 防护/流解析修复/spec gate 白名单 + 产品轮 1/2/3：memento new 脚手架 + memento review CI 审查 + Live 控制室 SSE 流 + 审计轮 3-6：安全/正确性/并发/UX + 品牌轮浏览器实测 + 基准轮无 key 方案）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -121,6 +121,12 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 传播准备：模板仓库需求已由 `memento new` 内置模板替代（npm 包内嵌 examples/starter-template，离线可用）；✅ **发布资产包已交付**（docs/launch/：定位阶梯 + 发布前检查清单 + 一周平台节奏（HN/Reddit/Lobsters/V2EX）+ 各平台可直接发帖的文案 + 评论 FAQ 库，每条卖点对应仓库内已有资产）；剩余 ⬜ 真实发帖执行（需真人账号 + 真实 benchmark 数据先跑）
 - ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑（需 API key）
 - ✅ 产品轮 3（Live 控制室 + 国内 provider + 首体验）：`memento web` Live 标签（`/api/live` SSE 增量流 + 文件游标 + 写入锁活性检测，浏览器实测：running 卡片→增量推送→finished 转换全链路验证）；glm（智谱）/qwen（阿里）内置预设（现有 deepseek/openai/anthropic/ollama/moonshot）；缺 key 错误直接给出获取地址（provider 预设带 apiKeyDocsUrl）；npm keywords 扩充（agentic/ai-coding/deepseek/ollama 等）；README/双语同步 209 测试徽章
+- ✅ 审计轮 3（安全，+回归测试）：插件名清理（npm 名正则校验拒绝任意字符）、插件子目录逃逸（install 目标路径限制）、审批绕过加固（MCP 工具免审白名单防默认拒、审批器管道输入边界）、秘密文件读取变体（.env 家族全拦）
+- ✅ 审计轮 4（正确性，+回归测试）：流重试失效修复（fetch 中断后 provider 流恢复）、工具名重复拼接修复（OpenAI 兼容网关跨 chunk 去重）、bench 暖链孤儿修复（失败时干净收尾）、ReDoS 防护复核
+- ✅ 审计轮 5（并发/性能，+11 测试）：token 估算单遍 O(n)（CJK 区间双权重）+ compact 增量缓存；文件锁 PID 活性检测（EPERM 容错 + 24h 陈旧界防 PID 重用 + TOCTOU 写后验证）；SSE 游标修剪防无界增长 + 崩溃锁不再误报 running；配置数组合并（autoApprove 并集/providers/mcpServers 按 key 深合并）；MCP 输出截断（16k chars）；vitest 超时稳定化
+- ✅ 审计轮 6（UX，+9 测试）：审批非交互拒绝改 stderr（管道 stdout 纯净）；审批 abort 监听器用完即清（长会话零泄漏）；shortId 拒绝采样消除模偏差；undo 快照 isInside 防前缀混淆；cmd.exe 参数 % 翻倍防环境变量展开
+- ✅ 品牌轮（web UI + 落地页浏览器实测）：workbench 六项修复（--faint 对比度 3.6→6.8:1 达 WCAG AA、窄屏 tabs 横向滚动、tab aria-current、sessions 表格滚动容器、Memory byKind 空状态占位、live-dot 非 running 停止脉冲）；落地页四项修复（375px 视口零溢出：nav 换行滚动 + 对比表滚动容器、--faint 对比度达标、测试徽章数字统一 252、og:image 品牌分享图生成）；双页浏览器实测全部 PASS、零 console 报错
+- ✅ 基准轮（bench 无 key 方案）：无模型时 bench 启动预检 fail-fast（不再空跑每个 cold 失败）+ 提示 --dry 零网络 demo；修复 warm/cold 副本丢失项目级 provider 配置（root workspace 传递）；--report 路径与 tasks 一致相对 workspace root；--dry 端到端实测：warm 曲线 2→1 turns / 2.5k→1.4k tokens、lessons 1→2→3 累积；bench 测试 10 个全绿
 
 ## 4. 取舍原则（每步都要问）
 
@@ -133,7 +139,7 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 ## 5. 验收路线图（里程碑）
 
 - **M1（已完成）**：Phase 1-3 全绿（164/164 测试）→ `v0.2.0` tag 已打（含插件市场 + 插件页 + CI/发布闭环 + starter 模板）
-- **M2（进行中）**：落地页 ✅ + 发布资产包 ✅ + `v0.3.0` tag 已打（Live 控制室 + CN provider 预设 + launch playbook）；剩余 ⬜ 记忆基准真实数据（需 API key）→ 第一篇 benchmark 博客
+- **M2（进行中）**：落地页 ✅ + 发布资产包 ✅ + `v0.3.0` tag 已打（Live 控制室 + CN provider 预设 + launch playbook）；审计轮 3-6 ✅（安全/正确性/并发/UX 共 +30 回归测试）；品牌轮 ✅（web UI 与落地页浏览器实测修复 + og 分享图）；基准轮 ✅（bench 无 key 预检 + --dry 零网络 demo + root 配置修复）；剩余 ⬜ 记忆基准真实数据（需 API key）→ 第一篇 benchmark 博客
 - **M3（一个月）**：MCP 双通道文章 + 落地页 → HN 首发（docs/launch/posts.md 文案已就绪，等真实数据）
 - **M4（持续）**：插件生态 + 社区运营 → 冲 10k → 冲 100k
 

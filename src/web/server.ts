@@ -27,6 +27,7 @@ import type { Lesson } from "../memory/types.ts";
 import { scanPluginDir } from "../plugins/loader.ts";
 import { loadSpecBundle } from "../spec/store.ts";
 import { walkFiles } from "../util/paths.ts";
+import { lockIsFresh } from "../util/lock.ts";
 import { VERSION } from "../version.ts";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
@@ -402,6 +403,13 @@ function liveStream(req: http.IncomingMessage, res: http.ServerResponse, root: s
       } catch {
         /* no sessions dir yet */
       }
+      // Prune cursors for session files that no longer exist — a long-lived
+      // SSE connection would otherwise accumulate one entry per session ever
+      // created, growing without bound.
+      const liveFiles = new Set(names.map((n) => path.join(dir, n)));
+      for (const key of cursors.keys()) {
+        if (!liveFiles.has(key)) cursors.delete(key);
+      }
       const live: { id: string; running: boolean; entries: unknown[] }[] = [];
       for (const name of names) {
         const file = path.join(dir, name);
@@ -411,7 +419,9 @@ function liveStream(req: http.IncomingMessage, res: http.ServerResponse, root: s
         } catch {
           continue; // deleted mid-scan
         }
-        const locked = fs.existsSync(`${file}.lock`);
+        // A leftover lock from a crashed process must not light the UI up
+        // forever: only a live, non-stale owner means "running".
+        const locked = lockIsFresh(`${file}.lock`);
         const recentlyTouched = Date.now() - st.mtimeMs < 3000;
         if (!locked && !recentlyTouched) continue;
 

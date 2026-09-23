@@ -186,6 +186,54 @@ describe("web workbench", () => {
     }
   });
 
+  it("does not report 'running' for a lock left by a crashed process", async () => {
+    const s = await boot();
+    // A leftover .lock from a dead pid plus a fresh mtime (a session that
+    // just crashed) must stream as running: false — never as a live session.
+    fs.writeFileSync(
+      path.join(root!, ".memento", "sessions", "s_test01.jsonl.lock"),
+      JSON.stringify({ pid: 99_999_999, startedAt: Date.now() }),
+    );
+    fs.utimesSync(
+      path.join(root!, ".memento", "sessions", "s_test01.jsonl"),
+      new Date(),
+      new Date(),
+    );
+    const controller = new AbortController();
+    try {
+      const res = await fetch(`${s.url}/api/live`, { signal: controller.signal });
+      expect(res.status).toBe(200);
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      const deadline = Date.now() + 4000;
+      let buf = "";
+      let reported: { running: boolean } | null = null;
+      while (Date.now() < deadline && reported === null) {
+        const chunk = await Promise.race([
+          reader.read(),
+          new Promise<{ done: boolean; value: Uint8Array | null }>((resolve) =>
+            setTimeout(() => resolve({ done: false, value: null }), 500),
+          ),
+        ]);
+        if (chunk.done) break;
+        if (chunk.value) buf += decoder.decode(chunk.value, { stream: true });
+        const eventIdx = buf.indexOf("event: live");
+        if (eventIdx >= 0) {
+          const dataIdx = buf.indexOf("data: ", eventIdx);
+          if (dataIdx >= 0) {
+            const lineEnd = buf.indexOf("\n", dataIdx);
+            const payload = JSON.parse(buf.slice(dataIdx + 6, lineEnd < 0 ? undefined : lineEnd));
+            reported = (payload.sessions ?? []).find((x: { id: string }) => x.id === "s_test01") ?? null;
+          }
+        }
+      }
+      expect(reported).not.toBeNull(); // it did stream (fresh mtime)
+      expect(reported!.running).toBe(false); // …but not as running
+    } finally {
+      controller.abort();
+    }
+  });
+
   it("sends nothing on /api/live when no session is running", async () => {
     const s = await boot();
     // Age the fixture log past the live window — a run that finished minutes

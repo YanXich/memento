@@ -67,7 +67,10 @@ const READONLY_TOKENS = new Set([
   "ls", "dir", "pwd", "whoami", "hostname", "date", "cat", "type", "head", "tail", "wc", "find", "file",
   "stat", "du", "df", "tree", "echo", "printf", "uname", "which", "where", "whereis", "printenv", "env",
   "man", "help", "nproc", "sleep", "true", "false", "basename", "dirname", "realpath", "readlink", "id",
-  "uptime", "locale", "diff", "cmp", "sort", "uniq", "cut", "tr", "jq", "yq", "rg", "grep", "awk", "sed", "cd",
+  "uptime", "locale", "diff", "cmp", "sort", "uniq", "cut", "tr", "jq", "yq", "rg", "grep", "awk", "cd",
+  // NOTE: `sed` is deliberately absent — GNU sed has an `e` command (and s///e)
+  // that executes shell code, and the payload hides inside quotes where the
+  // read-only check can't see it. Fail-safe: sed always needs approval.
   // PowerShell read cmdlets (aliases like ls/dir/cat are covered above)
   "get-childitem", "gci", "get-content", "get-location", "gl", "get-item", "gi", "select-string", "measure-object",
   "test-path", "resolve-path", "get-command", "get-help", "get-date", "sort-object", "select-object", "where-object",
@@ -97,6 +100,16 @@ function isSegmentReadonly(segment: string): boolean {
   if (!head) return true;
   if (VERSION_CMD.test(trimmed) || RUNNER_CMD.test(trimmed)) return true;
   if (head === "git") return parts[1] !== undefined && GIT_READONLY.has(parts[1].toLowerCase());
+  if (head === "find") {
+    // `find` can delete or run arbitrary commands; those subcommands sit
+    // outside quotes, so the unquoted form sees them.
+    if (/(^|\s)-(delete|exec|execdir|ok|okdir)(\s|=|$)/i.test(unquoted)) return false;
+  }
+  if (head === "awk") {
+    // awk can spawn shells via system() or piped getline — the payload hides
+    // inside quotes, so inspect the ORIGINAL segment, not the stripped one.
+    if (/\bsystem\s*\(|getline\s*[<&]|cmd\s*\|/i.test(trimmed)) return false;
+  }
   return READONLY_TOKENS.has(head);
 }
 
@@ -131,11 +144,38 @@ export function classifyCommand(command: string): DangerVerdict {
  * Secret-file matching — exact known names plus common variants
  * (.env.*, *.pem, *.key, id_* keys). Fail-safe: when in doubt, block.
  */
-function isSecretFileName(base: string): boolean {
+export function isSecretFileName(base: string): boolean {
   if (PROTECTED_FILES.has(base)) return true;
   if (base.startsWith(".env")) return true;
   if (base.endsWith(".pem") || base.endsWith(".key")) return true;
   return /^id_(rsa|ed25519|dsa|ecdsa)(\.pub)?$/.test(base);
+}
+
+/**
+ * Does a shell command reference a file whose name marks it a secret?
+ * `cat .env` and `type id_rsa` are classified read-only, but they exfiltrate
+ * secrets into the context and the session log — so the shell tool gates
+ * them behind approval just like a write would be gated.
+ */
+export function commandTouchesSecrets(command: string): boolean {
+  const tokens = command.split(/[\s'"\\/]+/).filter(Boolean);
+  return tokens.some((t) => isSecretFileName(path.basename(t)));
+}
+
+/**
+ * Read-side path guard. Reads never leave the workspace, and secret files
+ * (.env, *.pem, id_rsa, …) require approval — headless policies deny by
+ * default, so secrets stay on the machine unless a human opts in.
+ */
+export function guardReadPath(root: string, absPath: string): { allowed: boolean; secret: boolean; reason?: string } {
+  if (!isInside(root, absPath)) {
+    return { allowed: false, secret: false, reason: `path escapes the workspace (${absPath})` };
+  }
+  const base = path.basename(absPath);
+  if (isSecretFileName(base)) {
+    return { allowed: false, secret: true, reason: `reading ${base} is protected — secrets never leave the machine` };
+  }
+  return { allowed: true, secret: false };
 }
 
 /** Paths (relative to workspace root) that mutating tools refuse to touch. */

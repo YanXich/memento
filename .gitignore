@@ -20,3 +20,6 @@ coverage/
 
 # Screenshot/verification artifacts
 _shots/
+
+# Generated benchmark reports
+bench-report*.html

@@ -4,10 +4,16 @@ const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 /** Short, sortable-ish, human-friendly id with a type prefix, e.g. `s_8f3k2ma9`. */
 export function shortId(prefix: string, length = 8): string {
-  const bytes = randomBytes(length);
+  // Rejection sampling keeps the alphabet uniform: 256 is not divisible by
+  // 36, so `bytes[i] % 36` would bias the first four letters (~11% more
+  // likely). Bytes ≥ 252 (36 × 7) are discarded; the rest map evenly.
   let out = "";
-  for (let i = 0; i < length; i++) {
-    out += ALPHABET[bytes[i]! % ALPHABET.length];
+  while (out.length < length) {
+    const bytes = randomBytes((length - out.length) * 2); // oversample — rejection discards ~1.5%
+    for (let i = 0; i < bytes.length && out.length < length; i++) {
+      if (bytes[i]! >= 252) continue;
+      out += ALPHABET[bytes[i]! % ALPHABET.length];
+    }
   }
   return `${prefix}_${out}`;
 }

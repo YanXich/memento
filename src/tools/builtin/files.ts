@@ -12,7 +12,7 @@ import { z } from "zod";
 import type { Tool, ToolContext } from "../types.ts";
 import { displayPath, resolveInWorkspace, walkFiles, DEFAULT_IGNORE } from "../../util/paths.ts";
 import { truncate, truncateMiddle, formatBytes } from "../../util/text.ts";
-import { guardWritePath } from "../guard.ts";
+import { guardReadPath, guardWritePath, isSecretFileName } from "../guard.ts";
 import { snapshotBeforeWrite } from "../snapshot.ts";
 
 const MAX_READ_CHARS = 100_000;
@@ -30,6 +30,21 @@ export const readTool: Tool = {
   }),
   async execute(args: { path: string; offset?: number; limit?: number }, ctx: ToolContext) {
     const abs = resolveInWorkspace(ctx.cwd, args.path);
+    const guard = guardReadPath(ctx.cwd, abs);
+    if (!guard.allowed) {
+      if (guard.secret) {
+        // Secrets are readable only with an explicit human (or policy) yes —
+        // a headless run denies by default so nothing sensitive leaves the machine.
+        const approved = await ctx.approve({
+          tool: "read",
+          description: `read protected file ${args.path} (${guard.reason})`,
+          args: { path: args.path },
+        });
+        if (!approved) return { output: `Refused: ${guard.reason} — approval required`, isError: true };
+      } else {
+        return { output: `Refused: ${guard.reason}`, isError: true };
+      }
+    }
     let raw: string;
     try {
       const stat = fs.statSync(abs);
@@ -307,13 +322,32 @@ function findLoose(haystack: string, needle: string): { start: number; end: numb
 }
 
 /**
- * Heuristic rejection of catastrophic-backtracking shapes — a quantified
- * group containing a quantifier ((a+)+) or alternation ((a|b)*) can hang
- * the process on long single-line files. Fail-safe: refuse, don't run.
+ * Heuristic rejection of catastrophic-backtracking shapes. Refuses, never runs:
+ *  - a quantified group containing a quantifier ((a+)+) or alternation ((a|b)*)
+ *  - adjacent identical quantified atoms (a*a*, [^x]*[^x]*) — the ambiguous
+ *    NFA splits that make matching quadratic in the line length
+ *  - a quantified alternation where one alternative is a prefix of another
+ *    ((a|aa)*, (ab|abc)+)
+ * Fail-safe: a false positive costs a rewrite; a miss can hang the process
+ * on a minified one-line file.
  */
 function isReDoSSuspect(pattern: string): boolean {
   if (/\([^()]*[*+][^()]*\)[*+{]/s.test(pattern)) return true;
   if (/\([^()]*\|[^()]*\)[*+{]/s.test(pattern)) return true;
+  // Adjacent identical quantified atoms.
+  const atoms = pattern.match(/(?:\[[^\]]*\]|\\.|.)[*+](?:\{\d+(?:,\d*)?\})?/g) ?? [];
+  for (let i = 1; i < atoms.length; i++) {
+    if (atoms[i] === atoms[i - 1]) return true;
+  }
+  // Quantified alternation with a prefix-member: (a|aa)*, (abc|abcd)+.
+  for (const m of pattern.matchAll(/\(([^()|]+(?:\|[^()|]+)+)\)[*+{]/g)) {
+    const alts = m[1]!.split("|");
+    for (let i = 0; i < alts.length; i++) {
+      for (let j = 0; j < alts.length; j++) {
+        if (i !== j && alts[i] && alts[j] && alts[i]!.length < alts[j]!.length && alts[j]!.startsWith(alts[i]!)) return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -392,6 +426,9 @@ export const grepTool: Tool = {
       if (results.length >= maxResults) break;
       const rel = displayPath(ctx.cwd, file);
       if (fileFilter && !fileFilter.test(rel)) continue;
+      // Never search secret files — a match line from .env would exfiltrate
+      // the secret itself into the context and the session log.
+      if (isSecretFileName(path.basename(file))) continue;
       let stat: fs.Stats;
       try {
         stat = fs.statSync(file);
@@ -408,11 +445,22 @@ export const grepTool: Tool = {
       if (text.includes("\u0000")) continue; // binary
       scanned++;
       const lines = text.split("\n");
+      let skippedLong = 0;
       for (let i = 0; i < lines.length && results.length < maxResults; i++) {
         const line = lines[i]!;
+        // ReDoS defence in depth: even a well-shaped regex can blow up on a
+        // multi-hundred-KB minified line. Skip overlong lines rather than
+        // betting the event loop on them.
+        if (line.length > 20_000) {
+          skippedLong++;
+          continue;
+        }
         if (regex.test(line)) {
           results.push(`${rel}:${i + 1}: ${truncate(line.trim(), 240, "…")}`);
         }
+      }
+      if (skippedLong > 0) {
+        results.push(`${rel}: … (${skippedLong} overlong line${skippedLong === 1 ? "" : "s"} skipped — read the file directly)`);
       }
     }
     if (results.length === 0) {

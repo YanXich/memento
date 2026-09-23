@@ -189,13 +189,22 @@ export function createApprover(opts: ApproverOptions = {}): Approver {
 
   const ask = async (question: string): Promise<string> => {
     if (opts.signal?.aborted) throw new Error("aborted");
-    const answer = await Promise.race([
-      getRl().question(question),
-      new Promise<never>((_, reject) => {
-        opts.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-      }),
-    ]);
-    return answer.trim().toLowerCase();
+    const signal = opts.signal;
+    let onAbort: (() => void) | null = null;
+    try {
+      const answer = await Promise.race([
+        getRl().question(question),
+        new Promise<never>((_, reject) => {
+          onAbort = () => reject(new Error("aborted"));
+          signal?.addEventListener("abort", onAbort, { once: true });
+        }),
+      ]);
+      return answer.trim().toLowerCase();
+    } finally {
+      // Never leak the abort listener: a long run asks many approvals on one
+      // signal, and a stale reject closure on a settled promise is pure waste.
+      if (signal && onAbort) signal.removeEventListener("abort", onAbort);
+    }
   };
 
   const askCatch = async (question: string): Promise<string> => {
@@ -211,7 +220,9 @@ export function createApprover(opts: ApproverOptions = {}): Approver {
     async approve(tool, args, reason) {
       if (opts.yes || auto.has(tool) || sessionApproved.has(tool)) return true;
       if (!interactive) {
-        process.stdout.write(pc.yellow(`\n✗ ${tool} requires approval (non-interactive; run with --yes or add to autoApprove)\n`));
+        // stderr, never stdout: piped stdout (e.g. `memento run | jq`) must
+        // stay clean, and the refusal is a human-facing diagnostic.
+        process.stderr.write(pc.yellow(`\n✗ ${tool} requires approval (non-interactive; run with --yes or add to autoApprove)\n`));
         return false;
       }
       const preview = previewArgs(tool, args);

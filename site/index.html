@@ -20,6 +20,8 @@
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Memento — the coding agent that remembers" />
 <meta name="twitter:description" content="Confidence-weighted memory, deterministic specs, and a built-in benchmark that proves the learning." />
+<meta property="og:image" content="https://memento-agent.github.io/memento/og.png" />
+<meta name="twitter:image" content="https://memento-agent.github.io/memento/og.png" />
 <style>
   :root {
     --bg: #0d0c15;
@@ -29,7 +31,7 @@
     --line-soft: #201d2e;
     --ink: #e9e7f2;
     --sub: #a8a3bd;
-    --faint: #6f6a85;
+    --faint: #9b95b4;
     --violet: #a78bfa;
     --violet-deep: #7c5cf0;
     --aqua: #6fe3d0;
@@ -221,7 +223,8 @@
   .curve .legend .sw { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 7px; border-radius: 2px; }
   .curve .source { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 14px; }
   .curve .source a { color: var(--sub); }
-  .cmp { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .cmp { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 560px; }
+  .cmp-wrap { overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 12px; }
   .cmp th {
     text-align: left; color: var(--faint); font: 11px var(--mono);
     text-transform: uppercase; letter-spacing: 0.6px;
@@ -246,9 +249,16 @@
   footer .mono { color: var(--sub); }
 
   @media (max-width: 640px) {
+    .bar { flex-wrap: wrap; row-gap: 10px; }
+    .bar nav { order: 3; width: 100%; overflow-x: auto; gap: 18px; padding-bottom: 2px; scrollbar-width: none; }
+    .bar nav::-webkit-scrollbar { display: none; }
+    .bar nav a { white-space: nowrap; }
     .arc .row { grid-template-columns: 1fr; gap: 4px; }
     .arc .val { text-align: left; }
     .cmp td:first-child { width: auto; }
+    .hero { padding: 56px 20px 56px; }
+    .demo { margin-bottom: 64px; }
+    .stats { gap: 22px; }
   }
 </style>
 </head>
@@ -257,7 +267,7 @@
 <header class="bar">
   <div class="brand">
       <svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#6fe3d0"/></linearGradient></defs><circle cx="16" cy="16" r="11.5" fill="none" stroke="url(#logo-g)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="57 15.3" transform="rotate(-90 16 16)"/><circle cx="16" cy="16" r="4.6" fill="url(#logo-g)"/></svg>
-      <span class="grad-text">memento</span><span class="ver">v0.2.0</span>
+      <span class="grad-text">memento</span><span class="ver">v0.3.0</span>
     </div>
   <nav>
     <a href="#why">Why</a>
@@ -286,7 +296,7 @@
   </div>
   <div class="stats">
     <div class="s"><div class="n grad-text">4</div><div class="l">runtime deps</div></div>
-    <div class="s"><div class="n grad-text">164</div><div class="l">tests passing</div></div>
+    <div class="s"><div class="n grad-text">252</div><div class="l">tests passing</div></div>
     <div class="s"><div class="n grad-text">0</div><div class="l">databases</div></div>
     <div class="s"><div class="n grad-text">±0.30</div><div class="l">disproof &gt; proof</div></div>
   </div>
@@ -440,7 +450,7 @@
 <section class="block" id="compare">
   <h2>Honest comparison</h2>
   <p class="lead">Memento isn't trying to be the biggest agent. It's trying to be the one that <strong>improves the most on your code</strong>.</p>
-  <table class="cmp">
+  <div class="cmp-wrap"><table class="cmp">
     <thead><tr><th></th><th>Memento</th><th>aider</th><th>Cline</th><th>goose</th></tr></thead>
     <tbody>
       <tr><td>Learns across sessions</td><td class="us">confidence-weighted lessons</td><td class="yes">repo map / conventions</td><td class="no">per-session context</td><td class="yes">extensions</td></tr>
@@ -453,7 +463,7 @@
       <tr><td>Sub-agent dispatch</td><td class="us">read-only explorer, one level</td><td class="no">—</td><td class="yes">plan/act modes</td><td class="yes">extensions</td></tr>
       <tr><td>Team memory</td><td class="us">export/import, commit it</td><td class="no">—</td><td class="no">—</td><td class="yes">extensions</td></tr>
     </tbody>
-  </table>
+  </table></div>
 </section>
 
 <div class="final">
@@ -469,7 +479,7 @@
 <footer>
   ◈ memento · <span class="mono">MIT</span> · plain files, no lock-in ·
   <span class="mono">.memento/</span> is yours to keep<br />
-  Built with 4 runtime dependencies — and 203 tests that prove it works.
+  Built with 4 runtime dependencies — and 252 tests that prove it works.
 </footer>
 
 <script>

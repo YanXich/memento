@@ -26,8 +26,12 @@ import { createInterface } from "node:readline/promises";
 import pc from "picocolors";
 import { hasPluginFiles, PLUGIN_MANIFEST, scanPluginDir } from "../../plugins/loader.ts";
 import type { PluginManifest } from "../../plugins/loader.ts";
+import { isInside } from "../../util/paths.ts";
 
 const execFileAsync = promisify(execFile);
+
+/** A hung git server must not hang the install forever. */
+const GIT_TIMEOUT_MS = 60_000;
 
 const MANIFEST = PLUGIN_MANIFEST;
 
@@ -75,8 +79,22 @@ function pluginRoot(opts: Pick<PluginsOptions, "global" | "root">): { dir: strin
 }
 
 async function realGit(args: string[], cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", args, { cwd, windowsHide: true });
+  const { stdout } = await execFileAsync("git", args, { cwd, windowsHide: true, timeout: GIT_TIMEOUT_MS });
   return stdout.trim();
+}
+
+/**
+ * Normalize a plugin name for filesystem use — and refuse traversal.
+ * A plugin name must map to exactly one path segment inside the plugin dir.
+ * ".", "..", separators and anything that sanitizes to empty are rejected;
+ * accepting them would let `plugins remove ..` delete the whole state dir.
+ */
+function sanitizePluginName(raw: string): { ok: true; name: string } | { ok: false; reason: string } {
+  if (!raw || raw === "." || raw === "..") return { ok: false, reason: `"${raw}" is not a valid plugin name` };
+  if (/[\\/]/.test(raw)) return { ok: false, reason: `"${raw}" contains path separators` };
+  const cleaned = raw.replace(/[^\w.-]+/g, "-").replace(/^\.+/, "");
+  if (!cleaned) return { ok: false, reason: `"${raw}" is not a valid plugin name` };
+  return { ok: true, name: cleaned };
 }
 
 /** Parse `owner/repo[#subdir]`, git URLs, and local paths. */
@@ -210,6 +228,14 @@ async function installPlugin(opts: PluginsOptions): Promise<number> {
 
     // The plugin lives at the repo root, or at `#subdir` when given.
     let srcDir = parsed.subdir ? path.join(stage, ...parsed.subdir.split("/")) : stage;
+    // `#../../…` must not point outside the staged copy — that would copy
+    // arbitrary local paths into the plugin dir and later load them as code.
+    const resolvedSrc = path.resolve(srcDir);
+    const resolvedStage = path.resolve(stage);
+    if (resolvedSrc !== resolvedStage && !resolvedSrc.startsWith(resolvedStage + path.sep)) {
+      process.stderr.write(pc.red(`invalid #subdir: "${parsed.subdir}" escapes the staged source\n`));
+      return 1;
+    }
     // A loose local plugin file was staged as stage/<basename> — point at it.
     if (parsed.kind === "local" && !parsed.subdir && fs.statSync(parsed.dir!).isFile()) {
       srcDir = path.join(stage, path.basename(parsed.dir!));
@@ -222,7 +248,12 @@ async function installPlugin(opts: PluginsOptions): Promise<number> {
     }
 
     const manifest = srcIsFile ? null : readManifest(srcDir);
-    const name = (manifest?.name ?? parsed.fallbackName).replace(/[^\w.-]+/g, "-");
+    const parsedName = sanitizePluginName(manifest?.name ?? parsed.fallbackName);
+    if (!parsedName.ok) {
+      process.stderr.write(pc.red(`cannot install: ${parsedName.reason}\n`));
+      return 1;
+    }
+    const name = parsedName.name;
     const target = srcIsFile ? path.join(pluginsDir, `${name}.ts`) : path.join(pluginsDir, name);
     if (fs.existsSync(target)) {
       process.stderr.write(pc.red(`plugin "${name}" already installed — `) + pc.dim(`\`memento plugins remove ${name}\` first, or re-install after removal\n`));
@@ -280,11 +311,12 @@ async function installPlugin(opts: PluginsOptions): Promise<number> {
 }
 
 async function initPlugin(opts: PluginsOptions): Promise<number> {
-  const name = (opts.name ?? "").replace(/[^\w.-]+/g, "-");
-  if (!name) {
-    process.stderr.write(pc.red("init needs a name: `memento plugins init my-plugin`\n"));
+  const parsedName = sanitizePluginName(opts.name ?? "");
+  if (!parsedName.ok) {
+    process.stderr.write(pc.red(`init: ${parsedName.reason} (\`memento plugins init my-plugin\`)\n`));
     return 1;
   }
+  const name = parsedName.name;
   const { dir } = pluginRoot(opts);
   const file = path.join(dir, `${name}.ts`);
   if (fs.existsSync(file)) {
@@ -316,16 +348,23 @@ export default {
 }
 
 async function removePlugin(opts: PluginsOptions): Promise<number> {
-  const name = (opts.name ?? "").replace(/[^\w.-]+/g, "-");
-  if (!name) {
-    process.stderr.write(pc.red("remove needs a name: `memento plugins remove my-plugin`\n"));
+  const parsedName = sanitizePluginName(opts.name ?? "");
+  if (!parsedName.ok) {
+    process.stderr.write(pc.red(`remove: ${parsedName.reason}\n`));
     return 1;
   }
+  const name = parsedName.name;
   const { dir } = pluginRoot(opts);
   const candidates = [path.join(dir, name), path.join(dir, `${name}.ts`), path.join(dir, `${name}.mjs`), path.join(dir, `${name}.js`)];
   const target = candidates.find((c) => fs.existsSync(c));
   if (!target) {
     process.stderr.write(pc.red(`plugin "${name}" not found in ${path.relative(process.cwd(), dir)}\n`));
+    return 1;
+  }
+  // Defense in depth: the name is sanitized above, but deletion is recursive
+  // — never rm a path that does not provably live inside the plugin dir.
+  if (!isInside(dir, target) || path.resolve(target) === path.resolve(dir)) {
+    process.stderr.write(pc.red(`refusing to remove "${name}": target escapes the plugin directory\n`));
     return 1;
   }
   fs.rmSync(target, { recursive: true, force: true });

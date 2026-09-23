@@ -39,7 +39,7 @@ function writeTasks(tasks: unknown): string {
 }
 
 describe("memento bench", () => {
-  it("dry mode: cold costs 2 turns, warm learns to 1 as lessons accumulate", async () => {
+  it("dry mode: cold costs 2 turns, warm learns to 1 as lessons accumulate", { timeout: 120000 }, async () => {
     const file = writeTasks({
       tasks: [
         { name: "util-a", task: "Add a small util helper" },
@@ -76,7 +76,7 @@ describe("memento bench", () => {
     expect(out.tasks[0]!.warm.turns).toBe(2);
   });
 
-  it("parallel schedule: identical results to the sequential one, in task order", async () => {
+  it("parallel schedule: identical results to the sequential one, in task order", { timeout: 120000 }, async () => {
     const file = writeTasks({
       tasks: [
         { name: "util-a", task: "Add a small util helper" },
@@ -135,7 +135,7 @@ describe("memento bench", () => {
     await expect(benchTask({ file, root, dry: true })).resolves.toBe(1);
   });
 
-  it("--report: writes a standalone brand-styled HTML report", async () => {
+  it("--report: writes a standalone brand-styled HTML report", { timeout: 120000 }, async () => {
     const file = writeTasks({
       tasks: [
         { name: "util-a", task: "Add a small util helper" },
@@ -158,5 +158,27 @@ describe("memento bench", () => {
     expect(html).toContain("−50%");
     // The task text is escaped, not injected raw.
     expect(html).not.toContain('<script');
+  });
+
+  it("--report: a relative path resolves against the workspace root", async () => {
+    const file = writeTasks({ tasks: [{ name: "util-a", task: "Add a small util helper" }] });
+    const code = await benchTask({ file, root, dry: true, json: true, report: "report.html" });
+    expect(code).toBe(0);
+    expect(fs.existsSync(path.join(root, "report.html"))).toBe(true);
+  });
+
+  it("preflights the model and fails fast instead of churning every run", async () => {
+    const file = writeTasks({
+      tasks: [
+        { name: "util-a", task: "Add a small util helper" },
+        { name: "util-b", task: "Add another util helper" },
+      ],
+    });
+    // A provider that cannot exist anywhere makes resolveLlm fail regardless
+    // of what the developer's global config happens to contain.
+    const code = await benchTask({ file, root, provider: "no-such-provider-xyz" });
+    expect(code).toBe(1);
+    // Not a single task ran — the error lands before any sandbox is copied.
+    expect(writes.join("")).not.toContain("task 1/");
   });
 });

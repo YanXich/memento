@@ -176,10 +176,29 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
     return 1;
   }
 
+  // Fail fast before any task runs: without a working model the harness would
+  // churn through every cold run failing one by one. A preflight costs one
+  // config read and turns that into a single actionable error.
+  // The root workspace also feeds every run's resolveLlm: warm/cold copies
+  // deliberately exclude .memento/ (memory must not leak into cold runs), so
+  // a project-level provider config would otherwise be invisible to them.
+  const rootWs = opts.dry ? null : createWorkspace(opts.root);
+  if (rootWs) {
+    const llm = resolveLlm(rootWs, opts.provider, opts.model);
+    if ("error" in llm) {
+      await rootWs.close();
+      process.stderr.write(
+        pc.red(`bench needs a working model — ${llm.error}\n\n`) +
+          pc.dim(`  tip: try the zero-network harness demo first:  memento bench ${opts.file} --dry\n`),
+      );
+      return 1;
+    }
+  }
+
   // The shared warm directory accumulates memory across tasks; cold runs get
-  // pristine copies so they can never see it.
-  const runDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-"));
-  copyRepo(opts.root, runDir);
+  // pristine copies so they can never see it. Created lazily inside the try
+  // so an early failure still cleans up after itself.
+  let runDir: string | null = null;
 
   // JSON mode owns stdout: silence everything the loop prints (tool progress,
   // reflection, hints) so stdout stays machine-readable. stderr is untouched.
@@ -198,6 +217,9 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
 
   const results: BenchResult[] = [];
   try {
+    runDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-"));
+    copyRepo(opts.root, runDir);
+
     const jobs = Math.max(1, Math.min(opts.jobs ?? (opts.dry ? tasks.length : 2), tasks.length));
     if (jobs === 1) {
       for (const [i, task] of tasks.entries()) {
@@ -207,19 +229,36 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
         let cold: BenchRun | null = null;
         if (!opts.noCold) {
           const coldDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-cold-"));
-          copyRepo(opts.root, coldDir);
-          cold = await runOnce(coldDir, task.task, opts, { recall: false, reflect: false });
-          fs.rmSync(coldDir, { recursive: true, force: true });
+          try {
+            copyRepo(opts.root, coldDir);
+            cold = await runOnce(coldDir, task.task, opts, { recall: false, reflect: false }, rootWs);
+          } catch (err) {
+            process.stderr.write(pc.red(`cold run for "${task.name}" failed: ${(err as Error).message}\n`));
+          } finally {
+            fs.rmSync(coldDir, { recursive: true, force: true });
+          }
         }
-        const warm = await runOnce(runDir, task.task, opts, { recall: true, reflect: true });
+        let warm: BenchRun;
+        try {
+          warm = await runOnce(runDir, task.task, opts, { recall: true, reflect: true }, rootWs);
+        } catch (err) {
+          process.stderr.write(pc.red(`warm run for "${task.name}" failed: ${(err as Error).message}\n`));
+          warm = { turns: 0, inputTokens: 0, outputTokens: 0, lessons: 0, status: "error" };
+        }
         results.push({ name: task.name, task: task.task, cold, warm });
       }
     } else {
-      await runParallel(tasks, runDir, opts, jobs, results);
+      await runParallel(tasks, runDir, opts, jobs, results, rootWs);
     }
   } finally {
-    // Whatever happened, stdout must be sane again before the report runs.
+    // Whatever happened, stdout must be sane again before the report runs,
+    // and the sandbox must not linger — every path (success, failure, throw)
+    // lands here. A previous version leaked memento-bench-* temp dirs and
+    // left the warm chain running (burning API money) when a cold worker
+    // failed; both are now impossible.
     if (realWrite) process.stdout.write = realWrite;
+    if (runDir && !opts.keep) fs.rmSync(runDir, { recursive: true, force: true });
+    if (rootWs) await rootWs.close();
   }
 
   if (opts.json) {
@@ -235,7 +274,7 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
           root: opts.root,
           dry: Boolean(opts.dry),
           tasks: results,
-          runDir: opts.keep ? runDir : undefined,
+          runDir: opts.keep && runDir ? runDir : undefined,
         },
         null,
         2,
@@ -255,14 +294,15 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
       },
       results,
     );
-    const target = path.resolve(opts.report);
+    // Relative to the workspace root (-C), like the tasks file — a report
+    // path must mean the same thing no matter where the shell sits.
+    const target = path.resolve(opts.root, opts.report);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, html, "utf8");
     if (!opts.json) process.stdout.write(pc.green(`\nreport → ${opts.report} (plain HTML, share-ready)\n`));
   }
 
-  if (!opts.keep) fs.rmSync(runDir, { recursive: true, force: true });
-  else if (!opts.json) process.stdout.write(pc.dim(`\nrun dir kept at ${runDir}\n`));
+  if (opts.keep && runDir && !opts.json) process.stdout.write(pc.dim(`\nrun dir kept at ${runDir}\n`));
   return 0;
 }
 
@@ -276,14 +316,14 @@ export async function benchTask(opts: BenchOptions): Promise<number> {
  * and overlapping with the cold pool. Result slots are written by task index,
  * so the output array keeps task order no matter how workers interleave.
  */
-async function runParallel(tasks: BenchTask[], runDir: string, opts: BenchOptions, jobs: number, results: BenchResult[]): Promise<void> {
+async function runParallel(tasks: BenchTask[], runDir: string, opts: BenchOptions, jobs: number, results: BenchResult[], rootWs: Workspace | null): Promise<void> {
   // Slots keep task order; `warm` is guaranteed filled before this returns.
   for (const t of tasks) {
     results.push({ name: t.name, task: t.task, cold: null, warm: null as unknown as BenchRun });
   }
   // Cold runs live here as promises while workers claim them; a defined slot
   // marks a claimed task, so workers never double-book.
-  const coldPromises: Array<Promise<BenchRun> | undefined> = new Array(tasks.length);
+  const coldPromises: Array<Promise<BenchRun | null> | undefined> = new Array(tasks.length);
   const progress = (i: number, label: string): void => {
     if (!opts.json) process.stdout.write(pc.dim(`task ${i + 1}/${tasks.length}: ${tasks[i]!.name} · ${label}\n`));
   };
@@ -295,13 +335,18 @@ async function runParallel(tasks: BenchTask[], runDir: string, opts: BenchOption
           if (coldPromises[i]) continue; // already claimed by a peer worker
           coldPromises[i] = (async () => {
             const coldDir = fs.mkdtempSync(path.join(os.tmpdir(), "memento-bench-cold-"));
-            copyRepo(opts.root, coldDir);
             try {
-              return await runOnce(coldDir, tasks[i]!.task, opts, { recall: false, reflect: false });
+              copyRepo(opts.root, coldDir);
+              return await runOnce(coldDir, tasks[i]!.task, opts, { recall: false, reflect: false }, rootWs);
             } finally {
               fs.rmSync(coldDir, { recursive: true, force: true });
             }
-          })();
+          })().catch((err: unknown) => {
+            // A failed cold run must not take the whole benchmark down:
+            // report it as null and keep the other workers' results.
+            process.stderr.write(pc.red(`cold run for "${tasks[i]!.name}" failed: ${(err as Error).message}\n`));
+            return null;
+          });
           progress(i, "cold");
         }
       });
@@ -309,7 +354,12 @@ async function runParallel(tasks: BenchTask[], runDir: string, opts: BenchOption
   const warmChain = (async () => {
     for (let i = 0; i < tasks.length; i++) {
       progress(i, "warm");
-      results[i]!.warm = await runOnce(runDir, tasks[i]!.task, opts, { recall: true, reflect: true });
+      try {
+        results[i]!.warm = await runOnce(runDir, tasks[i]!.task, opts, { recall: true, reflect: true }, rootWs);
+      } catch (err) {
+        process.stderr.write(pc.red(`warm run for "${tasks[i]!.name}" failed: ${(err as Error).message}\n`));
+        results[i]!.warm = { turns: 0, inputTokens: 0, outputTokens: 0, lessons: 0, status: "error" };
+      }
     }
   })();
 
@@ -327,6 +377,7 @@ async function runOnce(
   task: string,
   opts: BenchOptions,
   mode: { recall: boolean; reflect: boolean },
+  rootWs: Workspace | null,
 ): Promise<BenchRun> {
   const ws = createWorkspace(dir);
   let provider: LlmProvider;
@@ -336,7 +387,11 @@ async function runOnce(
     provider = dryProvider();
     model = DRY_MODEL;
   } else {
-    const llm = resolveLlm(ws, opts.provider, opts.model);
+    // Resolve against the ROOT workspace, not the sandbox copy: warm/cold
+    // copies exclude .memento/, so a project-level provider config lives
+    // only in the root. rootWs is preflighted in benchTask, so this cannot
+    // fail with a configuration error here.
+    const llm = resolveLlm(rootWs ?? ws, opts.provider, opts.model);
     if ("error" in llm) throw new Error(llm.error);
     ({ provider, model, apiKey } = llm);
   }

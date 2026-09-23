@@ -1,6 +1,13 @@
 /**
  * Configuration — `.memento/config.json` (project) merged over
- * `~/.memento/config.json` (user). Project wins on scalar fields.
+ * `~/.memento/config.json` (user).
+ *
+ * Merge rules:
+ *  - Scalar fields: project wins.
+ *  - Array fields merge instead of replace: `autoApprove` unions (deduped),
+ *    `providers` and `mcpServers` merge by key (id / name), with the
+ *    project entry overriding a user entry of the same key — so a project
+ *    can pin a provider but not silently drop the user's servers.
  *
  * Secrets never live in config files. API keys are read from environment
  * variables only; a provider declares *which* variable holds its key.
@@ -59,10 +66,33 @@ export function loadConfig(root: string): LoadedConfig {
     const part = readJsonIfExists<MementoConfig>(file);
     if (part && typeof part === "object") {
       sources.push(file);
-      Object.assign(merged, part);
+      mergeConfig(merged, part);
     }
   }
   return { config: merged, sources };
+}
+
+function mergeConfig(target: MementoConfig, part: MementoConfig): void {
+  for (const [key, value] of Object.entries(part)) {
+    if (value === undefined) continue;
+    if (key === "autoApprove" && Array.isArray(value)) {
+      target.autoApprove = [...new Set([...(target.autoApprove ?? []), ...(value as string[])])];
+    } else if (key === "providers" && Array.isArray(value)) {
+      target.providers = mergeByKey(target.providers ?? [], value as ProviderConfig[], (p) => p.id);
+    } else if (key === "mcpServers" && Array.isArray(value)) {
+      target.mcpServers = mergeByKey(target.mcpServers ?? [], value as McpServerConfig[], (s) => s.name);
+    } else {
+      (target as Record<string, unknown>)[key] = value;
+    }
+  }
+}
+
+/** Merge by key: later entries override earlier entries with the same key, order is preserved. */
+function mergeByKey<T>(base: T[], extra: T[], keyOf: (item: T) => string): T[] {
+  const byKey = new Map<string, T>();
+  for (const item of base) byKey.set(keyOf(item), item);
+  for (const item of extra) byKey.set(keyOf(item), item);
+  return [...byKey.values()];
 }
 
 /** Which env var holds the key for this provider (custom providers win). */

@@ -52,11 +52,13 @@ const MAX_STDERR_LINES = 20;
 /**
  * Quote one argument for cmd.exe. Without this, paths containing spaces
  * ("C:\Users\Dev One\…") break the spawn on Windows when a .cmd shim
- * (npx, pnpm, …) forces shell execution.
+ * (npx, pnpm, …) forces shell execution. `%` is doubled: cmd.exe expands
+ * %VAR% even inside quotes, which would corrupt literal percent signs.
  */
-function quoteWinArg(arg: string): string {
-  if (!/[\s"&|<>^]/.test(arg)) return arg;
-  return `"${arg.replace(/"/g, '""')}"`;
+export function quoteWinArg(arg: string): string {
+  if (!/[\s"&|<>^%]/.test(arg)) return arg;
+  const escaped = arg.replace(/%/g, "%%").replace(/"/g, '""');
+  return `"${escaped}"`;
 }
 
 export class McpClient {

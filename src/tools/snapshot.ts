@@ -12,6 +12,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isInside } from "../util/paths.ts";
 
 const UNDO_DIR = ".memento/undo";
 const TOMBSTONE = "__memento_absent__";
@@ -22,7 +23,9 @@ let batchCounter = 0;
 /** Record one file's pre-write state. Called by file tools right before writing. */
 export function snapshotBeforeWrite(root: string, relPath: string): void {
   const abs = path.resolve(root, relPath);
-  if (!abs.startsWith(path.resolve(root))) return; // defensive: never snapshot outside the workspace
+  // isInside, not a string prefix — `C:\work\app-other` must never pass a
+  // startsWith check against `C:\work\app`.
+  if (!isInside(root, abs)) return; // defensive: never snapshot outside the workspace
   const batch = `${Date.now()}-${process.pid}-${++batchCounter}`;
   const dir = path.join(root, UNDO_DIR, batch);
   fs.mkdirSync(path.dirname(path.join(dir, relPath)), { recursive: true });
@@ -61,7 +64,7 @@ export function undoLatest(root: string): UndoResult | { error: string } {
   for (const rel of files) {
     const snapshot = path.join(batchDir, rel);
     const target = path.resolve(root, rel);
-    if (!target.startsWith(path.resolve(root))) continue; // corrupted snapshot — skip
+    if (!isInside(root, target)) continue; // corrupted snapshot — skip
     const content = fs.readFileSync(snapshot, "utf8");
     fs.mkdirSync(path.dirname(target), { recursive: true });
     if (content === TOMBSTONE) {

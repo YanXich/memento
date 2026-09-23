@@ -22,7 +22,7 @@
     --line-soft: #201d2e;
     --ink: #e9e7f2;
     --sub: #a8a3bd;
-    --faint: #6f6a85;
+    --faint: #9b95b4;
     /* brand: fresh violet + water */
     --violet: #a78bfa;
     --violet-deep: #7c5cf0;
@@ -83,8 +83,10 @@
   .brand .ver { color: var(--faint); font: 11px var(--mono); }
   .ws-path { color: var(--faint); font: 12px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55vw; }
 
-  nav.tabs { display: flex; gap: 22px; padding: 0 22px; border-bottom: 1px solid var(--line-soft); }
+  nav.tabs { display: flex; gap: 22px; padding: 0 22px; border-bottom: 1px solid var(--line-soft); overflow-x: auto; scrollbar-width: none; }
+  nav.tabs::-webkit-scrollbar { display: none; }
   nav.tabs button {
+    flex: none; white-space: nowrap;
     padding: 11px 2px 9px; color: var(--sub); font-size: 13.5px;
     border-bottom: 2px solid transparent; margin-bottom: -1px;
   }
@@ -115,6 +117,8 @@
 
   /* -------------------------------------------------------------- sessions */
   table.list { width: 100%; border-collapse: collapse; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 10px; }
+  .table-scroll table { min-width: 660px; }
   table.list th {
     text-align: left; color: var(--faint); font: 11px var(--mono); text-transform: uppercase; letter-spacing: 0.6px;
     padding: 6px 10px; border-bottom: 1px solid var(--line);
@@ -287,6 +291,8 @@
     100% { box-shadow: 0 0 0 0 rgba(111, 227, 208, 0); }
   }
   @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+  /* a finished card's dot rests: no pulse, dimmed to the line colour */
+  .live-card:not(.running) .live-dot { animation: none; background: var(--faint); opacity: 0.65; }
   .live-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 18px; overflow: hidden; }
   .live-card.running { border-color: color-mix(in srgb, var(--aqua) 38%, var(--line)); }
   .live-card .head {
@@ -332,7 +338,7 @@ const api = async (p) => {
   if (!r.ok) throw new Error(p + " → HTTP " + r.status);
   return r.json();
 };
-const fmtTime = (ts) => new Date(ts).toISOString().replace("T", " ").slice(0, 16);
+const fmtTime = (ts) => (ts == null ? "—" : new Date(ts).toISOString().replace("T", " ").slice(0, 16));
 const relTime = (ts) => {
   // ts may be a numeric epoch or an ISO string (e.g. a plugin manifest date).
   const t = typeof ts === "number" ? ts : Date.parse(ts);
@@ -449,7 +455,11 @@ function mdToHtml(src) {
 /* ----------------------------------------------------------------- views */
 let ov = null; // overview cache
 const main = () => $("#main");
-const setTabs = (view) => document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+const setTabs = (view) => document.querySelectorAll("#tabs button").forEach((b) => {
+  const on = b.dataset.view === view;
+  b.classList.toggle("active", on);
+  if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+});
 
 /* ---------------------------------------------------- first-run onboarding */
 /** Welcome hero shown before the first session — a map of the first three commands. */
@@ -526,7 +536,7 @@ async function renderSessions() {
     return;
   }
   main().innerHTML = "<h1>Sessions</h1><div class='dim'>" + data.sessions.length + " recorded · click to replay what the model saw</div>" +
-    '<table class="list" style="margin-top:16px"><thead><tr><th>session</th><th>status</th><th>task</th><th>turns</th><th>model</th><th>started</th></tr></thead><tbody>' +
+    '<div class="table-scroll" style="margin-top:16px"><table class="list"><thead><tr><th>session</th><th>status</th><th>task</th><th>turns</th><th>model</th><th>started</th></tr></thead><tbody>' +
     data.sessions.map((s) =>
       '<tr class="click" onclick="location.hash=\'#/sessions/' + esc(s.id) + '\'">' +
         '<td class="sid">' + esc(s.id) + "</td><td>" + statusBadge(s.status) + "</td>" +
@@ -534,7 +544,7 @@ async function renderSessions() {
         '<td class="mono">' + (s.turns == null ? "—" : s.turns) + "</td>" +
         '<td class="mono" style="color:var(--faint)">' + esc(s.provider + "/" + s.model) + "</td>" +
         '<td class="mono" style="color:var(--faint)">' + fmtTime(s.startedAt) + "</td></tr>").join("") +
-    "</tbody></table>";
+    "</tbody></table></div>";
 }
 
 async function renderSessionDetail(id) {
@@ -607,7 +617,7 @@ async function renderMemory() {
     '<div class="stat"><div class="n">' + m.retired + "</div><div class='l'>retired</div></div>" +
     '<div class="stat"><div class="n">' + m.avgConfidence.toFixed(2) + "</div><div class='l'>avg confidence</div></div>" +
     '<div class="stat"><div class="n" style="font-size:15px;padding-top:6px">' +
-      Object.entries(m.byKind).filter(([, v]) => v > 0).map(([k, v]) => v + " " + k).join(" · ") + "</div><div class='l'>by kind</div></div>" +
+      (Object.entries(m.byKind).filter(([, v]) => v > 0).map(([k, v]) => v + " " + k).join(" · ") || '<span class="faint">—</span>') + "</div><div class='l'>by kind</div></div>" +
     "</div>";
   html += "<h2>Active</h2>";
   html += d.active.length ? d.active.map((l) => lessonHtml(l)).join("") : '<div class="empty">no active lessons</div>';
