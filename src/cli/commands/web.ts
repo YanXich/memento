@@ -30,7 +30,8 @@ export async function webCmd(opts: WebOptions): Promise<number> {
     `\n  ◈ memento workbench ${pc.dim(`v${VERSION}`)}\n\n` +
       `  url        ${pc.bold(server.url)}\n` +
       `  root       ${opts.root}\n` +
-      `  scope      ${pc.dim("read-only · loopback-only · the UI never mutates the workspace")}\n\n` +
+      `  scope      ${pc.dim("read-only · loopback-only · the UI never mutates the workspace")}\n` +
+      `  live       ${pc.dim("open /#/live to watch a running session stream in")}\n\n` +
       `  ${pc.dim("Ctrl+C stops the server.")}\n`,
   );
 

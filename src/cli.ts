@@ -392,7 +392,7 @@ program
 
 program
   .command("web")
-  .description("open the read-only workbench (spec · memory · sessions · plugins) in a browser")
+  .description("open the read-only workbench (live · spec · memory · sessions · plugins) in a browser")
   .option(...cwdOption)
   .option("--port <n>", "listen port (default 4173)", (v) => parseInt(v, 10))
   .option("--no-open", "do not open a browser window")
