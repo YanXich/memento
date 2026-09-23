@@ -7,8 +7,7 @@
 Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束时，它会做一次反思（reflection），把发生的事提炼成**经验（lessons）**——带置信度存储：被证据证实则上升，被现实反驳则下降。每次任务开始时，它先召回相关规格与经验，于是这个 Agent 在**你的**代码库上越用越聪明。
 
 <p align="center">
-  <a href="https://github.com/memento-agent/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/memento-agent/memento/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/memento-agent"><img alt="npm" src="https://img.shields.io/npm/v/memento-agent?color=a78bfa" /></a>
+  <a href="https://github.com/YanXich/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/YanXich/memento/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />

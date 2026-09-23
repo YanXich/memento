@@ -49,7 +49,7 @@ deterministic end to end:
   chain stays strictly serial because each task inherits the previous one's
   memory. Same results as sequential, in parallel.
 - `--json` + `scripts/merge-bench.mjs` append your run to the
-  [leaderboard](https://github.com/memento-agent/memento/tree/main/site/benchmarks)
+  [leaderboard](https://github.com/YanXich/memento/tree/master/site/benchmarks)
   in one command. Same submitter+model+family re-submits as an update.
 
 ## Demo numbers (deterministic dry-run)

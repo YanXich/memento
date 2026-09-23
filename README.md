@@ -7,8 +7,7 @@
 Memento is a spec-driven coding agent for the terminal. Every session ends with a reflection pass that turns what happened into *lessons* — stored with confidence scores that rise when evidence confirms them and fall when reality contradicts them. Every task starts by recalling the spec and the lessons that matter, so the agent gets measurably better at *your* codebase over time.
 
 <p align="center">
-  <a href="https://github.com/memento-agent/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/memento-agent/memento/actions/workflows/ci.yml/badge.svg" /></a>
-  <a href="https://www.npmjs.com/package/memento-agent"><img alt="npm" src="https://img.shields.io/npm/v/memento-agent?color=a78bfa" /></a>
+  <a href="https://github.com/YanXich/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/YanXich/memento/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
@@ -162,7 +161,7 @@ memento run "explain how auth works, then add a /healthz route"
 Prefer to hack on it?
 
 ```bash
-git clone <this repo> && cd memento
+git clone https://github.com/YanXich/memento && cd memento
 npm install
 npm run check      # typecheck + 254 tests
 npm run build      # dist/cli.js, single-file ESM bundle

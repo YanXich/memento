@@ -6,11 +6,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/memento-agent/memento.git"
+    "url": "git+https://github.com/YanXich/memento.git"
   },
-  "homepage": "https://github.com/memento-agent/memento#readme",
+  "homepage": "https://github.com/YanXich/memento#readme",
   "bugs": {
-    "url": "https://github.com/memento-agent/memento/issues"
+    "url": "https://github.com/YanXich/memento/issues"
   },
   "author": "memento contributors",
   "engines": {

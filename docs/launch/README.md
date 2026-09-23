@@ -30,7 +30,7 @@ Do not lead with benchmarks. Benchmarks close the deal; memory opens the door.
 
 ## 2. What must be true before the first post
 
-- [ ] Repo exists at `github.com/memento-agent/memento`, CI green on the
+- [ ] Repo exists at `github.com/YanXich/memento`, CI green on the
       default branch (the badge in the README must not show "failing").
 - [ ] `v0.3.0` tag pushed; `npm publish --provenance` done; `npm i -g
       memento-agent` works from a clean machine (test once).

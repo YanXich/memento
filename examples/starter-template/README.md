@@ -5,7 +5,7 @@ Clone it, run one command, and watch the whole loop work: spec gating,
 memory learning, and a benchmark that proves both.
 
 ```
-git clone https://github.com/memento-agent/memento-starter.git my-project
+git clone https://github.com/YanXich/memento.git my-project
 cd my-project
 memento init          # scaffold .memento/ (if you deleted it)
 memento spec show     # read the constitution + feature specs

@@ -109,7 +109,7 @@ Tech notes people here usually ask about:
 Try: npm i -g memento-agent (needs any OpenAI-compat key; deepseek/ollama/
 glm/qwen presets included). Repo has a zero-setup scripted demo too.
 
-Repo: https://github.com/memento-agent/memento
+Repo: https://github.com/YanXich/memento
 
 Caveat: the published numbers are dry-run demos until the first real-model
 run lands — the harness is open for submissions, and I'd genuinely like help
@@ -147,7 +147,7 @@ its own context" question.
 
 Would love qwen3/llama3.1 runs against the dry-run baseline.
 
-Repo: https://github.com/memento-agent/memento
+Repo: https://github.com/YanXich/memento
 ```
 
 ---
@@ -182,7 +182,7 @@ Four runtime dependencies. Sessions JSONL, specs Markdown. MCP both
 directions (client + `serve-mcp` exposing lessons to other agents).
 Default-deny for project plugins/MCP servers.
 
-https://github.com/memento-agent/memento
+https://github.com/YanXich/memento
 ```
 
 ---
@@ -229,7 +229,7 @@ top lessons 注入 system prompt，同一个代码库里会越用越熟。
 上手：npm i -g memento-agent，配个 DEEPSEEK_API_KEY 就能跑。没有 key 也
 没关系，仓库里 node scripts/demo.mjs 用本地脚本模型零配置跑完整循环。
 
-仓库：https://github.com/memento-agent/memento
+仓库：https://github.com/YanXich/memento
 
 诚实声明：目前公开的 benchmark 数字是 dry-run 演示数据，真实模型的
 冷/热矩阵是我发布后的第一件事，欢迎一起跑。
