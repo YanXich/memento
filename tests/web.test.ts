@@ -12,6 +12,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { WebServer } from "../src/web/server.ts";
 import { startWebServer } from "../src/web/server.ts";
+import { SessionLog } from "../src/kernel/session.ts";
 
 let server: WebServer | null = null;
 let root: string | null = null;
@@ -128,6 +129,87 @@ describe("web workbench", () => {
     const body = (await res.json()) as { error: string; candidates: string[] };
     expect(body.error).toContain("ambiguous");
     expect(body.candidates.sort()).toEqual(["s_abc", "s_abd"]);
+  });
+
+  it("streams live session entries over SSE while the session lock is held", async () => {
+    const s = await boot();
+    const log = SessionLog.create(path.join(root!, ".memento", "sessions"), {
+      cwd: root!,
+      model: "m",
+      provider: "p",
+      task: "live task",
+      mementoVersion: "0.1.0",
+    });
+    log.appendMessage({ id: "live-1", role: "user", content: [{ type: "text", text: "stream me" }], ts: Date.now() });
+
+    const controller = new AbortController();
+    try {
+      const res = await fetch(`${s.url}/api/live`, { signal: controller.signal });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      const deadline = Date.now() + 4000;
+      let buf = "";
+      let sawLive = false;
+      while (Date.now() < deadline) {
+        const chunk = await Promise.race([
+          reader.read(),
+          new Promise<{ done: boolean; value: Uint8Array | null }>((resolve) =>
+            setTimeout(() => resolve({ done: false, value: null }), 500),
+          ),
+        ]);
+        if (chunk.done) break;
+        if (chunk.value) buf += decoder.decode(chunk.value, { stream: true });
+        const eventIdx = buf.indexOf("event: live");
+        if (eventIdx >= 0) {
+          const dataIdx = buf.indexOf("data: ", eventIdx);
+          if (dataIdx >= 0) {
+            const lineEnd = buf.indexOf("\n", dataIdx);
+            const payload = JSON.parse(buf.slice(dataIdx + 6, lineEnd < 0 ? undefined : lineEnd));
+            const hit = (payload.sessions ?? []).some(
+              (x: { id: string; entries: { kind: string }[] }) =>
+                x.id === log.header.sessionId && x.entries.some((e) => e.kind === "message"),
+            );
+            if (hit) {
+              sawLive = true;
+              break;
+            }
+          }
+        }
+      }
+      expect(sawLive).toBe(true);
+    } finally {
+      controller.abort();
+      log.close();
+    }
+  });
+
+  it("sends nothing on /api/live when no session is running", async () => {
+    const s = await boot();
+    // Age the fixture log past the live window — a run that finished minutes
+    // ago must not linger in the control room.
+    fs.utimesSync(
+      path.join(root!, ".memento", "sessions", "s_test01.jsonl"),
+      new Date(Date.now() - 60_000),
+      new Date(Date.now() - 60_000),
+    );
+    const controller = new AbortController();
+    const res = await fetch(`${s.url}/api/live`, { signal: controller.signal });
+    expect(res.status).toBe(200);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    const chunk = await Promise.race([
+      reader.read(),
+      new Promise<{ done: boolean; value: Uint8Array | null }>((resolve) =>
+        setTimeout(() => resolve({ done: false, value: null }), 1600),
+      ),
+    ]);
+    controller.abort();
+    const text = chunk.value ? decoder.decode(chunk.value, { stream: true }) : "";
+    // No live session exists: the stream stays silent (no event: live frames).
+    expect(text).not.toContain("event: live");
   });
 
   it("reflects spec, memory, and sessions through the same stores as the CLI", async () => {

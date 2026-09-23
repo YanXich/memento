@@ -119,6 +119,7 @@ async function handle(req: http.IncomingMessage, res: http.ServerResponse, root:
     return sessionDetail(req, res, root, id);
   }
   if (p === "/api/lessons") return respondJson(req, res, p, [stampDir(memoryDir(root))], () => lessons(root));
+  if (p === "/api/live") return liveStream(req, res, root);
   if (p === "/api/spec") return respondJson(req, res, p, [stampTree(specDir(root))], () => spec(root));
   // trust/enabled ride on config, so config files are part of the stamp too.
   if (p === "/api/plugins") return respondJson(req, res, p, [stampTree(pluginsDir(root)), stampTree(globalPluginsDir(home)), stampFile(projectConfigPath(root)), stampFile(userConfigPath())], () => pluginsList(root, home));
@@ -361,6 +362,100 @@ function sessionDetail(req: http.IncomingMessage, res: http.ServerResponse, root
   respondJson(req, res, `/api/sessions/${canonicalId}`, [stampFile(file)], () => {
     const loaded = loadSession(file);
     return { header: loaded.header, status: loaded.status, messages: loaded.messages.length, entries: loaded.entries };
+  });
+}
+
+/**
+ * `/api/live` — an SSE stream of the sessions currently being written.
+ *
+ * The workbench turns into a control room while `memento run` is working:
+ * every completed log line (a tool call, a streamed answer, a reflection
+ * note) is pushed to the browser within a tick. A session counts as live
+ * while its writer lock is held (the CLI keeps it for the whole run) or
+ * while its file is still being touched (just-finished runs stay visible
+ * for a few seconds so the final result flashes in).
+ *
+ * The stream is incremental: each connection keeps a size cursor per file
+ * and only reads the bytes appended since the last tick — a long-running
+ * agent costs one small read per second, not a full log re-parse. Partial
+ * trailing lines (a write mid-line) are buffered until the next tick.
+ */
+function liveStream(req: http.IncomingMessage, res: http.ServerResponse, root: string): void {
+  res.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-store",
+    connection: "keep-alive",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
+  });
+  res.write("retry: 2000\n\n");
+
+  const dir = sessionsDir(root);
+  const cursors = new Map<string, { size: number; partial: string }>();
+
+  const tick = (): void => {
+    try {
+      let names: string[] = [];
+      try {
+        names = fs.readdirSync(dir).filter((n) => n.endsWith(".jsonl"));
+      } catch {
+        /* no sessions dir yet */
+      }
+      const live: { id: string; running: boolean; entries: unknown[] }[] = [];
+      for (const name of names) {
+        const file = path.join(dir, name);
+        let st: fs.Stats;
+        try {
+          st = fs.statSync(file);
+        } catch {
+          continue; // deleted mid-scan
+        }
+        const locked = fs.existsSync(`${file}.lock`);
+        const recentlyTouched = Date.now() - st.mtimeMs < 3000;
+        if (!locked && !recentlyTouched) continue;
+
+        const cur = cursors.get(file) ?? { size: 0, partial: "" };
+        const entries: unknown[] = [];
+        if (st.size >= cur.size) {
+          const len = st.size - cur.size;
+          if (len > 0) {
+            const fd = fs.openSync(file, "r");
+            const buf = Buffer.alloc(len);
+            fs.readSync(fd, buf, 0, len, cur.size);
+            fs.closeSync(fd);
+            const text = cur.partial + buf.toString("utf8");
+            const lines = text.split("\n");
+            cur.partial = lines.pop() ?? ""; // possibly a half-written line
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                entries.push(JSON.parse(line));
+              } catch {
+                /* corrupt line — skip, never kill the stream */
+              }
+            }
+          }
+        }
+        cursors.set(file, { size: st.size, partial: cur.partial });
+        if (locked || entries.length > 0) {
+          live.push({ id: name.replace(/\.jsonl$/, ""), running: locked, entries });
+        }
+      }
+      if (live.length > 0) {
+        res.write(`event: live\ndata: ${JSON.stringify({ ts: Date.now(), sessions: live })}\n\n`);
+      }
+    } catch {
+      /* a broken tick must not kill the stream */
+    }
+  };
+
+  tick(); // immediate snapshot — the UI never waits a full tick for state
+  const timer = setInterval(tick, 800);
+  const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
+  req.on("close", () => {
+    clearInterval(timer);
+    clearInterval(heartbeat);
   });
 }
 

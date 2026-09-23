@@ -275,6 +275,31 @@
   .trust-banner b { color: var(--ink); }
   .trust-banner .mono { font-size: 12px; }
 
+  /* ------------------------------------------------------------------ live */
+  .live-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--aqua); margin-left: 7px; vertical-align: 1px;
+    animation: pulse 1.7s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(111, 227, 208, 0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(111, 227, 208, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(111, 227, 208, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+  .live-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 18px; overflow: hidden; }
+  .live-card.running { border-color: color-mix(in srgb, var(--aqua) 38%, var(--line)); }
+  .live-card .head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in srgb, var(--violet-soft) 55%, var(--panel));
+  }
+  .live-card .head .task { flex: 1; min-width: 0; font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live-card .head .state { font: 11px var(--mono); color: var(--faint); white-space: nowrap; }
+  .live-card.running .head .state { color: var(--aqua); }
+  .live-card .body { padding: 4px 18px 16px; }
+  .live-card .body .timeline { margin-top: 14px; }
+
   footer { color: var(--faint); font-size: 12px; text-align: center; padding: 30px 0 40px; }
 </style>
 </head>
@@ -288,6 +313,7 @@
 </header>
 <nav class="tabs" id="tabs">
   <button data-view="overview">Overview</button>
+  <button data-view="live">Live<span class="live-dot" id="live-dot" hidden></span></button>
   <button data-view="sessions">Sessions</button>
   <button data-view="memory">Memory</button>
   <button data-view="spec">Spec</button>
@@ -688,6 +714,101 @@ function pluginHtml(p) {
     "</div>";
 }
 
+/* ------------------------------------------------------------------ live */
+/**
+ * The Live tab subscribes to /api/live (SSE): while a session runs, every
+ * completed log line streams in within a tick. Entries are accumulated
+ * client-side and rendered with the same timeline as the session detail,
+ * so a live run looks exactly like its final replay.
+ */
+const liveState = { sessions: new Map(), es: null };
+const currentView = () => location.hash.replace(/^#\/?/, "").split("?")[0].split("/")[0] || "overview";
+
+function updateLiveDot() {
+  let any = false;
+  for (const c of liveState.sessions.values()) if (c.running) any = true;
+  $("#live-dot").hidden = !any;
+}
+
+function connectLive() {
+  const es = new EventSource("/api/live");
+  liveState.es = es;
+  es.addEventListener("live", (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    for (const s of msg.sessions || []) {
+      const cur = liveState.sessions.get(s.id) || { id: s.id, task: null, running: false, entries: [] };
+      for (const e of s.entries || []) {
+        if (e.kind === "header") cur.task = e.task;
+        if (e.kind === "result") cur.running = false;
+        cur.entries.push(e);
+      }
+      if (s.entries && s.entries.length === 0) cur.running = s.running;
+      liveState.sessions.set(s.id, cur);
+    }
+    // Sessions the server no longer reports: a held lock has been released.
+    const seen = new Set((msg.sessions || []).map((s) => s.id));
+    for (const c of liveState.sessions.values()) {
+      if (c.running && !seen.has(c.id)) c.running = false;
+    }
+    updateLiveDot();
+    if (currentView() === "live") appendLive();
+  });
+}
+
+function liveCardHtml(c) {
+  const entries = c.entries.map(entryHtml).filter(Boolean).join("");
+  return '<div class="live-card' + (c.running ? " running" : "") + '" id="live-' + esc(c.id) + '">' +
+    '<div class="head"><span class="live-dot"></span>' +
+    '<span class="task">' + esc(c.task || c.id) + '</span>' +
+    '<span class="state">' + (c.running ? "running" : "finished · " + relTime(c.entries.length ? c.entries[c.entries.length - 1].ts : Date.now())) + "</span>" +
+    '<a href="#/sessions/' + esc(c.id) + '" class="mono" style="font-size:11px">replay →</a></div>' +
+    '<div class="body"><div class="timeline" id="live-tl-' + esc(c.id) + '">' + entries + "</div></div></div>";
+}
+
+async function renderLive() {
+  setTabs("live");
+  if (!liveState.sessions.size) {
+    main().innerHTML = "<h1>Live</h1><div class='dim'>Watch a session as it happens — open this page while <span class='mono'>memento run</span> is working in the repo.</div>" +
+      '<div class="onboard" style="margin-top:26px"><div class="steps">' +
+      '<div class="step"><div class="k">1</div><div class="body"><div class="t">Start a task in another terminal</div><div class="d">any memento run streams here within a second</div></div></div>' +
+      '<div class="step"><div class="k">2</div><div class="body"><div class="t">Watch the agent think, call tools, and finish</div><div class="d">tool calls, answers, reflection and the final result appear live</div></div></div>' +
+      '<div class="step"><div class="k">3</div><div class="body"><div class="t">Keep the tab open</div><div class="d">the dot on the Live tab pulses while a session runs</div></div></div>' +
+      "</div></div>" +
+      '<div class="onboard-note">waiting for the first event… this page reconnects automatically</div>';
+    return;
+  }
+  const cards = [...liveState.sessions.values()].map(liveCardHtml).join("");
+  main().innerHTML = "<h1>Live</h1><div class='dim'>Streaming from <span class='mono'>.memento/sessions</span> — what you see here is exactly what the log records.</div>" + cards;
+}
+
+/** Incremental paint: append new entries without repainting what's on screen. */
+function appendLive() {
+  const containers = document.querySelectorAll("[id^='live-tl-']");
+  // No container yet (empty state on screen, or a fresh session): full render.
+  if (!containers.length || !main().querySelector(".live-card")) {
+    if (containers.length || liveState.sessions.size) renderLive();
+    return;
+  }
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;
+  for (const c of liveState.sessions.values()) {
+    const tl = document.getElementById("live-tl-" + c.id);
+    if (!tl) { renderLive(); return; } // a brand-new session joined
+    const shown = tl.children.length;
+    for (let i = shown; i < c.entries.length; i++) {
+      const html = entryHtml(c.entries[i]);
+      if (html) tl.insertAdjacentHTML("beforeend", html);
+    }
+    const card = document.getElementById("live-" + c.id);
+    if (card) {
+      card.classList.toggle("running", c.running);
+      const state = card.querySelector(".state");
+      if (state) state.textContent = c.running ? "running" : "finished";
+    }
+  }
+  if (nearBottom) window.scrollTo({ top: document.body.scrollHeight });
+}
+
 /* --------------------------------------------------------------- routing */
 async function route() {
   const hashFull = location.hash.replace(/^#\/?/, "");
@@ -697,6 +818,7 @@ async function route() {
   try {
     if (parts[0] === "sessions" && parts[1]) await renderSessionDetail(parts[1]);
     else if (parts[0] === "sessions") await renderSessions();
+    else if (parts[0] === "live") await renderLive();
     else if (parts[0] === "memory") await renderMemory();
     else if (parts[0] === "spec") await renderSpec(parts.slice(1).join("/") || null);
     else if (parts[0] === "plugins") await renderPlugins();
@@ -722,6 +844,7 @@ window.addEventListener("hashchange", route);
     main().innerHTML = '<div class="card err" style="margin-top:20px">API unreachable: ' + esc(err.message) + "</div>";
     return;
   }
+  connectLive();
   route();
 })();
 </script>
