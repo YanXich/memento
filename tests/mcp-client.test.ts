@@ -3,10 +3,11 @@
  * all against a real fake server child process (see support/fake-mcp-server.cjs).
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { McpClient } from "../src/mcp/client.ts";
 import { attachMcpServers, createWorkspace } from "../src/cli/workspace.ts";
 
@@ -22,7 +23,7 @@ beforeEach(() => {
 afterEach(() => {
   for (const c of clients) c.close();
   clients.length = 0;
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 async function connect(timeoutMs?: number): Promise<McpClient> {
@@ -81,18 +82,18 @@ describe("McpClient", () => {
 });
 
 describe("attachMcpServers (workspace bridging + trust model)", () => {
-  const originalUserProfile = process.env.USERPROFILE;
   let userHome: string;
 
   beforeEach(() => {
     userHome = fs.mkdtempSync(path.join(os.tmpdir(), "memento-user-"));
-    process.env.USERPROFILE = userHome;
+    // Mock os.homedir() itself: the USERPROFILE env var is Windows-only and
+    // would silently point at the runner's real home on Linux CI.
+    vi.spyOn(os, "homedir").mockReturnValue(userHome);
   });
 
   afterEach(() => {
-    if (originalUserProfile === undefined) delete process.env.USERPROFILE;
-    else process.env.USERPROFILE = originalUserProfile;
-    fs.rmSync(userHome, { recursive: true, force: true });
+    vi.restoreAllMocks();
+    rmWithRetry(userHome);
   });
 
   function writeUserConfig(extra: Record<string, unknown>): void {

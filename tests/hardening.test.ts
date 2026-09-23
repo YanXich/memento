@@ -11,6 +11,7 @@
  *  - ReDoS shapes and overlong-line skipping in grep (H7)
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,7 +35,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
   vi.unstubAllGlobals();
 });
 

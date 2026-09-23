@@ -4,6 +4,7 @@
  * and the loader's new package-dir shape.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,7 +32,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 function pluginSourceDir(): string {

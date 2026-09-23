@@ -9,6 +9,7 @@
  * model's copy-paste must not fail a unique match.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -23,7 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 function write(rel: string, content: string): void {

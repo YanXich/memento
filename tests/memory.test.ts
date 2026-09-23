@@ -4,6 +4,7 @@
  * and a lesson that falls far enough is retired (never deleted).
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -24,7 +25,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 describe("LessonStore", () => {

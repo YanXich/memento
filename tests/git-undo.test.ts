@@ -9,6 +9,7 @@
  * step by step, newest first.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -26,7 +27,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 const ctx = (): ToolContext => ({ cwd: dir, progress: () => {}, approve: async () => true });

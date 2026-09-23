@@ -5,6 +5,7 @@
  * (even under a different id) is never duplicated.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +21,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 function seed(root: string, texts: string[]): string[] {

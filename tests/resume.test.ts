@@ -3,6 +3,7 @@
  * must replay the exact transcript and continue into the SAME file.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -51,7 +52,7 @@ afterEach(async () => {
   await server.close();
   if (savedKey === undefined) delete process.env[KEY_ENV];
   else process.env[KEY_ENV] = savedKey;
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 function seedSession(task: string): { id: string; file: string } {

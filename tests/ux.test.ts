@@ -14,13 +14,14 @@ import { shortId } from "../src/util/ids.ts";
 import { snapshotBeforeWrite, hasUndoSnapshots } from "../src/tools/snapshot.ts";
 import { quoteWinArg } from "../src/mcp/client.ts";
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 
 let dirs: string[] = [];
 
 afterEach(() => {
-  for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs) rmWithRetry(d);
   dirs = [];
   vi.restoreAllMocks();
 });

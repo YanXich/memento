@@ -13,6 +13,7 @@
  *  - MCP bridge output capping helpers keep the informative tail on errors
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +25,7 @@ let dir: string | undefined;
 let homes: string[] = [];
 
 afterEach(() => {
-  if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  if (dir) rmWithRetry(dir);
   for (const h of homes) fs.rmSync(h, { recursive: true, force: true });
   dir = undefined;
   homes = [];

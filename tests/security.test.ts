@@ -6,6 +6,7 @@
  * S1 Anthropic tool-call id desync, and the M1 truncation-nudge behavior.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,7 +31,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
   vi.unstubAllGlobals();
 });
 

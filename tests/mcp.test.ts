@@ -6,6 +6,7 @@
  * append-to-disk contract of add_lesson is verified, not mocked.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -24,7 +25,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 interface Frame {

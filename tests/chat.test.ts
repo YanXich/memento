@@ -8,6 +8,7 @@
  * with a reflection pass at exit.
  */
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -28,7 +29,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   if (server) await server.close();
   server = null;
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 async function setup(): Promise<string> {

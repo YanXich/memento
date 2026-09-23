@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs";
+import { rmWithRetry } from "./support/rm.ts";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -33,7 +34,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmWithRetry(dir);
 });
 
 function dirtyTree(): void {
