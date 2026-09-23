@@ -9,7 +9,7 @@ import path from "node:path";
 import type { MementoConfig } from "../config.ts";
 import { apiKeyEnvFor, loadConfig, projectConfigPath, resolveApiKey, userConfigPath } from "../config.ts";
 import type { LlmProvider, ModelInfo } from "../llm/types.ts";
-import { createProviderRegistry, resolveProviderModel } from "../llm/registry.ts";
+import { BUILTIN_PRESETS, createProviderRegistry, resolveProviderModel } from "../llm/registry.ts";
 import type { SpecBundle } from "../spec/types.ts";
 import { loadSpecBundle } from "../spec/store.ts";
 import type { SpecChecker } from "../spec/verify.ts";
@@ -232,6 +232,10 @@ export function llmReadiness(ws: Workspace, providerId: string): { ok: boolean; 
     return { ok: true, detail: "local server — no API key needed" };
   }
   if (!env) return { ok: true, detail: "no API key env declared (custom gateway?)" };
-  if (!key) return { ok: false, detail: `missing environment variable ${env}` };
+  if (!key) {
+    const preset = BUILTIN_PRESETS.find((p) => p.id === providerId);
+    const where = preset?.apiKeyDocsUrl ? ` — get one at ${preset.apiKeyDocsUrl}` : "";
+    return { ok: false, detail: `missing environment variable ${env}${where}` };
+  }
   return { ok: true, detail: `${env} is set` };
 }

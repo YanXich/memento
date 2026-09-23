@@ -12,7 +12,7 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20.10-67c8e8.svg" />
   <img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-4-success.svg" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-203%20passing-success.svg" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-209%20passing-success.svg" />
 </p>
 
 <p align="center">
@@ -238,7 +238,7 @@ memento show s_h8x2kd91mf     # 查看转录（任意唯一前缀即可）
 
 ## 供应商
 
-内置预设：**deepseek**、**openai**、**anthropic**、**ollama**、**moonshot**——通过 `--provider` 或配置选择，凭据来自标准环境变量（`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`…）。任何 OpenAI 兼容端点都可显式声明：
+内置预设：**deepseek**、**openai**、**anthropic**、**ollama**、**moonshot**、**glm**（智谱）、**qwen**（阿里）——通过 `--provider` 或配置选择，凭据来自标准环境变量（`DEEPSEEK_API_KEY`、`OPENAI_API_KEY`…）。任何 OpenAI 兼容端点都可显式声明：
 
 ```jsonc
 // .memento/config.json

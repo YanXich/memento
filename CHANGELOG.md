@@ -57,6 +57,11 @@ All notable changes to memento are documented here. Format follows
 - `spec delta` proposals targeting anything outside `.memento/spec/` (or
   exceeding 20 KB) are rejected before approval — the gate can no longer be
   talked into approving edits to arbitrary project files.
+- Session ids that are a prefix of several sessions are reported as ambiguous
+  (400 in the workbench, an explicit error with the candidate list in the CLI)
+  instead of silently resolving to the first match — `memento show`/`resume`/
+  `chat --session` and the web detail endpoint could previously open the wrong
+  audit trail.
 
 ### Added
 
@@ -97,6 +102,19 @@ All notable changes to memento are documented here. Format follows
   severities, raw-answer fallback). A ready-made GitHub Actions workflow
   (`.github/workflows/memento-review.yml`) posts the findings as a PR
   comment — advisory only, never blocks or merges.
+- **Live workbench view** — `memento web` gains a Live tab backed by
+  `/api/live` (SSE): sessions currently being written stream into the browser
+  within a tick, rendered with the same timeline as the final replay, with a
+  pulsing dot while a run is in flight. Incremental on both ends: the server
+  keeps a size cursor per file (a tick costs one small read, not a re-parse)
+  and the client appends DOM nodes instead of repainting.
+- Built-in provider presets for **Zhipu GLM** (`glm-4-flash`/`glm-4-plus`)
+  and **Alibaba Qwen** (`qwen-plus`/`qwen-max`), and every preset now carries
+  a docs URL shown in the missing-key error — `memento run` without a key
+  tells you where to get one instead of just which env var is empty.
+- `docs/launch/` — the launch playbook: positioning ladder, a pre-launch
+  checklist of what must be true before the first post, a one-week platform
+  sequence, and ready-to-post copy for HN / Reddit / Lobsters / V2EX.
 
 ## [0.2.0] — the agent that learns, measured
 

@@ -15,6 +15,8 @@ export interface BuiltinPreset {
   type: "openai-compat" | "anthropic";
   baseUrl: string;
   apiKeyEnv: string;
+  /** Where a human gets a key — shown when the env var is missing. */
+  apiKeyDocsUrl?: string;
   /** Model id prefix -> context window heuristics; exact entries win. */
   models: ModelInfo[];
 }
@@ -26,6 +28,7 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
     type: "openai-compat",
     baseUrl: "https://api.deepseek.com/v1",
     apiKeyEnv: "DEEPSEEK_API_KEY",
+    apiKeyDocsUrl: "https://platform.deepseek.com",
     models: [
       { id: "deepseek-chat", contextWindow: 128_000, maxOutput: 8_192, supportsTools: true },
       { id: "deepseek-reasoner", contextWindow: 128_000, maxOutput: 65_536, supportsTools: true },
@@ -37,6 +40,7 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
     type: "openai-compat",
     baseUrl: "https://api.openai.com/v1",
     apiKeyEnv: "OPENAI_API_KEY",
+    apiKeyDocsUrl: "https://platform.openai.com/api-keys",
     models: [
       { id: "gpt-4o", contextWindow: 128_000, maxOutput: 16_384, supportsTools: true },
       { id: "gpt-4o-mini", contextWindow: 128_000, maxOutput: 16_384, supportsTools: true },
@@ -49,6 +53,7 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
     type: "anthropic",
     baseUrl: "https://api.anthropic.com",
     apiKeyEnv: "ANTHROPIC_API_KEY",
+    apiKeyDocsUrl: "https://console.anthropic.com",
     models: [
       { id: "claude-sonnet-4-20250514", contextWindow: 200_000, maxOutput: 64_000, supportsTools: true },
       { id: "claude-3-5-haiku-20241022", contextWindow: 200_000, maxOutput: 8_192, supportsTools: true },
@@ -60,6 +65,7 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
     type: "openai-compat",
     baseUrl: "http://localhost:11434/v1",
     apiKeyEnv: "OLLAMA_API_KEY", // usually unset — local server ignores auth
+    apiKeyDocsUrl: "https://ollama.com",
     models: [
       { id: "qwen3:8b", contextWindow: 32_768, maxOutput: 8_192, supportsTools: true },
       { id: "llama3.1:8b", contextWindow: 128_000, maxOutput: 8_192, supportsTools: false },
@@ -71,7 +77,32 @@ export const BUILTIN_PRESETS: BuiltinPreset[] = [
     type: "openai-compat",
     baseUrl: "https://api.moonshot.cn/v1",
     apiKeyEnv: "MOONSHOT_API_KEY",
+    apiKeyDocsUrl: "https://platform.moonshot.cn",
     models: [{ id: "kimi-k2-0711-preview", contextWindow: 128_000, maxOutput: 16_384, supportsTools: true }],
+  },
+  {
+    id: "glm",
+    label: "Zhipu GLM",
+    type: "openai-compat",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    apiKeyEnv: "ZHIPUAI_API_KEY",
+    apiKeyDocsUrl: "https://open.bigmodel.cn",
+    models: [
+      { id: "glm-4-flash", contextWindow: 128_000, maxOutput: 4_096, supportsTools: true },
+      { id: "glm-4-plus", contextWindow: 128_000, maxOutput: 4_096, supportsTools: true },
+    ],
+  },
+  {
+    id: "qwen",
+    label: "Alibaba Qwen",
+    type: "openai-compat",
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiKeyEnv: "DASHSCOPE_API_KEY",
+    apiKeyDocsUrl: "https://bailian.console.aliyun.com",
+    models: [
+      { id: "qwen-plus", contextWindow: 128_000, maxOutput: 8_192, supportsTools: true },
+      { id: "qwen-max", contextWindow: 32_768, maxOutput: 8_192, supportsTools: true },
+    ],
   },
 ];
 
