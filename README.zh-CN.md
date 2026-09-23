@@ -22,7 +22,7 @@ Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束
 ```console
 $ memento run "给登录接口加上限流"
 
-◈ memento v0.2.0 · deepseek/deepseek-chat · ~/work/api
+◈ memento v0.3.0 · deepseek/deepseek-chat · ~/work/api
 task: 给登录接口加上限流
 ▸ recalled 2 lesson(s) from memory
 ▸ indexing repository

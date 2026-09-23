@@ -4,7 +4,7 @@ All notable changes to memento are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the project versions with
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] — the control room, CN providers, and the launch kit
 
 ### Fixed
 

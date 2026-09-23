@@ -30,7 +30,7 @@
 | — | 事件总线 handler 异常中断链、迭代期 on/off 语义不稳定 | ✅ 已修（快照语义 + 异常隔离 + 熔断） |
 | — | 有写操作时整批工具串行 | ✅ 已优化（连续只读并行、写操作保序）+ 时序回归测试 |
 
-**验证状态**：typecheck 干净 · **203/203 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场 + 审计轮 2：跨进程锁/ReDoS 防护/流解析修复/spec gate 白名单 + 产品轮 1/2：memento new 脚手架 + memento review CI 审查）· 构建成功。
+**验证状态**：typecheck 干净 · **209/209 测试通过**（含 18+ 安全回归 + 并行时序 + MCP 双通道 + git/undo + commit hint + resume 断点续跑 + chat REPL + 记忆进化轨迹 + bench 并行调度 + 插件市场 + 审计轮 2：跨进程锁/ReDoS 防护/流解析修复/spec gate 白名单 + 产品轮 1/2/3：memento new 脚手架 + memento review CI 审查 + Live 控制室 SSE 流）· 构建成功。
 
 尚待处理的重要问题（阶段归属见下）：
 
@@ -118,8 +118,9 @@ Phase 1 全部项已落地：M2（600s 请求超时 + retryable 失败重试一�
 - ✅ 社区材料：CONTRIBUTING、SECURITY、ISSUE 模板（bug/feature）、PR 模板
 - ✅ 落地页（静态 + GitHub Pages）：hero 定位语 + 动画终端（30s demo + chat）+ 记忆基准学习曲线 SVG + CTA；OG/twitter 标签；浏览器实测截图存证
 - ✅ 发布闭环：GitHub Actions CI（双 OS × 双 Node 矩阵 typecheck+tests；build 后 CLI 启动/插件清单/全链路 demo/内存并发/bench dry 串行+并行冒烟）+ tag 触发 npm publish --provenance workflow；README 双语徽章（CI/npm）+ starter 模板（examples/starter-template/，15 分钟上手导览，spec verify + bench --dry 端到端验证）
-- ✅ 传播准备：模板仓库需求已由 `memento new` 内置模板替代（npm 包内嵌 examples/starter-template，离线可用）；剩余 ⬜ HN/Reddit/V2EX 发帖节奏、benchmark 博客发布
-- ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑
+- ✅ 传播准备：模板仓库需求已由 `memento new` 内置模板替代（npm 包内嵌 examples/starter-template，离线可用）；✅ **发布资产包已交付**（docs/launch/：定位阶梯 + 发布前检查清单 + 一周平台节奏（HN/Reddit/Lobsters/V2EX）+ 各平台可直接发帖的文案 + 评论 FAQ 库，每条卖点对应仓库内已有资产）；剩余 ⬜ 真实发帖执行（需真人账号 + 真实 benchmark 数据先跑）
+- ✅ 记忆基准（杠杆 1）leaderboard 页面已交付（harness `memento bench` ✅ + `site/benchmarks/` ✅）；真实模型数据待跑（需 API key）
+- ✅ 产品轮 3（Live 控制室 + 国内 provider + 首体验）：`memento web` Live 标签（`/api/live` SSE 增量流 + 文件游标 + 写入锁活性检测，浏览器实测：running 卡片→增量推送→finished 转换全链路验证）；glm（智谱）/qwen（阿里）内置预设（现有 deepseek/openai/anthropic/ollama/moonshot）；缺 key 错误直接给出获取地址（provider 预设带 apiKeyDocsUrl）；npm keywords 扩充（agentic/ai-coding/deepseek/ollama 等）；README/双语同步 209 测试徽章
 
 ## 4. 取舍原则（每步都要问）
 

@@ -22,7 +22,7 @@ Memento is a spec-driven coding agent for the terminal. Every session ends with 
 ```console
 $ memento run "add rate limiting to the login endpoint"
 
-◈ memento v0.2.0 · deepseek/deepseek-chat · ~/work/api
+◈ memento v0.3.0 · deepseek/deepseek-chat · ~/work/api
 task: add rate limiting to the login endpoint
 ▸ recalled 2 lesson(s) from memory
 ▸ indexing repository
