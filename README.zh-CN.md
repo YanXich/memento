@@ -6,6 +6,8 @@
 
 Memento 是面向终端的规格驱动（SDD）编码 Agent。每次会话结束时，它会做一次反思（reflection），把发生的事提炼成**经验（lessons）**——带置信度存储：被证据证实则上升，被现实反驳则下降。每次任务开始时，它先召回相关规格与经验，于是这个 Agent 在**你的**代码库上越用越聪明。
 
+**缘起。** Memento 并非从白纸开始：我们先研读并**实测**了两个参考 Agent——[pi](https://github.com/earendil-works/pi) 通过真实 CLI 会话运行，[deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 通过其 `dsh web` 界面浏览器实测、截图验证——再基于实测结论**自研**了这套规格驱动 + 自迭代的闭环。完整诚实的对比见 [docs/COMPARISON.md](docs/COMPARISON.md)。
+
 <p align="center">
   <a href="https://github.com/YanXich/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/YanXich/memento/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
@@ -266,6 +268,17 @@ memento show s_h8x2kd91mf     # 查看转录（任意唯一前缀即可）
 **非目标：** 聊天 UI、自主式多 Agent 蜂群、托管服务。Memento 是可组合的引擎 + CLI。`memento-agent` 包同时导出完整 API（内核、规格、记忆、插件），供嵌入使用。
 
 Agent 链路刻意只设一层：内建 `subagent` 工具派出只读探索者，探索者不能再派探索者——树保持浅层，转录始终可审计。
+
+---
+
+## 用自己开发自己（自举）
+
+Memento 用 Memento 开发 Memento。这个仓库端到端运行自己的闭环：
+
+- `memento spec init` 起草了本仓库的宪法与架构，`memento spec verify` 为每次发布把关；
+- `memento review` 用自己沉淀的经验审查本项目自己的改动；
+- `memento bench` 实测自己的学习曲线（冷跑 vs 热跑）；
+- CHANGELOG 里的每处修复都走过了与你项目相同的 verify → reflect 流程——自举验证，0 问题。
 
 ---
 

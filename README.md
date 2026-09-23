@@ -6,6 +6,8 @@
 
 Memento is a spec-driven coding agent for the terminal. Every session ends with a reflection pass that turns what happened into *lessons* — stored with confidence scores that rise when evidence confirms them and fall when reality contradicts them. Every task starts by recalling the spec and the lessons that matter, so the agent gets measurably better at *your* codebase over time.
 
+**Where it comes from.** Memento began as field research, not a blank page: we studied two reference agents and ran them hands-on — [pi](https://github.com/earendil-works/pi) through real CLI sessions, [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) through its `dsh web` UI (browser-tested, screenshot-verified) — then built our own spec-driven, self-iterating loop on what we learned. The full, honest comparison lives in [docs/COMPARISON.md](docs/COMPARISON.md).
+
 <p align="center">
   <a href="https://github.com/YanXich/memento/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/YanXich/memento/actions/workflows/ci.yml/badge.svg" /></a>
   <img alt="license" src="https://img.shields.io/badge/license-MIT-6fe3d0.svg" />
@@ -298,6 +300,19 @@ Built-in presets: **deepseek**, **openai**, **anthropic**, **ollama**, **moonsho
 **Non-goals:** a graphical chat UI, autonomous multi-agent swarms, a hosted service. Memento is a composable engine and a CLI — the interactive `memento chat` REPL is terminal-first, in the same spirit. The `memento-agent` package also exports its full API (kernel, spec, memory, plugins) if you want to embed it.
 
 The agent chain is deliberately one level deep: the built-in `subagent` tool dispatches read-only explorers, and explorers cannot dispatch explorers — trees stay shallow, transcripts stay auditable.
+
+---
+
+## Built with itself
+
+Memento develops memento. This repository runs its own loop end to end:
+
+- `memento spec init` drafted this repo's constitution and architecture, and
+  `memento spec verify` gates every release;
+- `memento review` screens the project's own changes with its accumulated lessons;
+- `memento bench` measures its own learning curve (cold vs warm);
+- every fix in the CHANGELOG went through the same verify → reflect pass you
+  get on your projects — self-bootstrap validation, zero findings.
 
 ---
 
